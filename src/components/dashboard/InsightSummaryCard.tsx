@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { BadgeCheck, Lightbulb, TrendingUp } from "lucide-react";
+import { useAuth } from "@/context/AuthContext"; 
 
 interface Props {
   month: number;
@@ -12,15 +13,17 @@ interface Props {
 }
 
 export default function InsightSummaryCard({ month, year }: Props) {
+  const { user } = useAuth(); // ✅ get authenticated user
+
   const [insightPoints, setInsightPoints] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // monthName is derived directly from props, so it's stable
   const monthName = new Date(year, month).toLocaleString("default", { month: "long" });
 
   useEffect(() => {
-    // No need to recalculate monthName inside useEffect
+    if (!user) return; // ✅ wait for user
+
     const fetchInsight = async () => {
       setLoading(true);
       setInsightPoints([]);
@@ -30,7 +33,8 @@ export default function InsightSummaryCard({ month, year }: Props) {
       let totalExpense = 0;
 
       try {
-        const incomeSnap = await getDocs(collection(db, "incomes"));
+        const incomeQuery = query(collection(db, "incomes"), where("userId", "==", user.uid));
+        const incomeSnap = await getDocs(incomeQuery);
         incomeSnap.forEach((doc) => {
           const d = doc.data();
           const rawDate = d.date;
@@ -50,7 +54,8 @@ export default function InsightSummaryCard({ month, year }: Props) {
           }
         });
 
-        const expenseSnap = await getDocs(collection(db, "expenses"));
+        const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+        const expenseSnap = await getDocs(expenseQuery);
         expenseSnap.forEach((doc) => {
           const d = doc.data();
           const rawDate = d.date;
@@ -122,7 +127,7 @@ Savings: ₹${savings.toFixed(2)}
     };
 
     fetchInsight();
-  }, [month, year, monthName]); // Added monthName to dependency array
+  }, [month, year, monthName, user]); // ✅ added user to deps
 
   const iconMap = [
     <Lightbulb key="income" className="text-yellow-300 w-5 h-5 mt-1" />,

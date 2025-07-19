@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { db } from "@/lib/firebase";
 import {
   LineChart,
   Line,
@@ -12,9 +11,11 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { collection, getDocs, Timestamp } from "firebase/firestore"; // Import Timestamp for type safety
+import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { useAuth } from "@/context/AuthContext"; 
 
 interface SavingsTrendChartProps {
   year: number;
@@ -33,19 +34,21 @@ const monthNames = [
 ];
 
 export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
+  const { user } = useAuth(); // ✅ current user
   const [data, setData] = useState<SavingsDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Define a more specific type for raw, including Timestamp from Firestore
   const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
     if (!raw) return null;
-    if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
+    if (raw instanceof Timestamp) return raw.toDate();
     if (typeof raw === "string") return new Date(raw);
     if (raw instanceof Date) return raw;
     return null;
   };
 
   useEffect(() => {
+    if (!user) return; // ✅ wait for user auth
+
     const fetchData = async () => {
       setLoading(true);
 
@@ -58,8 +61,8 @@ export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
 
       try {
         const [incomeSnap, expenseSnap] = await Promise.all([
-          getDocs(collection(db, "incomes")),
-          getDocs(collection(db, "expenses")),
+          getDocs(query(collection(db, "incomes"), where("userId", "==", user.uid))),
+          getDocs(query(collection(db, "expenses"), where("userId", "==", user.uid))),
         ]);
 
         incomeSnap.forEach((doc) => {
@@ -91,7 +94,7 @@ export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
     };
 
     fetchData();
-  }, [year]);
+  }, [year, user]);
 
   const handleDownloadCSV = () => {
     const header = "Month,Income,Expenses,Savings\n";

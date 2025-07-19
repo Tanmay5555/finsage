@@ -2,17 +2,11 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, Timestamp } from "firebase/firestore"; // Import Timestamp for type safety
+import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface Props {
   month: number;
@@ -20,16 +14,16 @@ interface Props {
 }
 
 export default function TotalBalanceCard({ month, year }: Props) {
+  const { user } = useAuth();
   const [currentBalance, setCurrentBalance] = useState(0);
   const [currentIncome, setCurrentIncome] = useState(0);
   const [currentExpense, setCurrentExpense] = useState(0);
   const [data, setData] = useState<{ month: string; balance: number }[]>([]);
   const [change, setChange] = useState<number | null>(null);
 
-  // Define a more specific type for raw, including Timestamp from Firestore
   const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
     if (!raw) return null;
-    if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
+    if (raw instanceof Timestamp) return raw.toDate();
     if (typeof raw === "string") return new Date(raw);
     if (raw instanceof Date) return raw;
     return null;
@@ -37,15 +31,19 @@ export default function TotalBalanceCard({ month, year }: Props) {
 
   useEffect(() => {
     const fetchData = async () => {
-      const incomeSnap = await getDocs(collection(db, "incomes"));
-      const expenseSnap = await getDocs(collection(db, "expenses"));
+      if (!user) return;
+
+      const incomeQuery = query(collection(db, "incomes"), where("userId", "==", user.uid));
+      const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+
+      const incomeSnap = await getDocs(incomeQuery);
+      const expenseSnap = await getDocs(expenseQuery);
 
       const balances: { month: string; balance: number }[] = [];
 
       let income = 0;
       let expense = 0;
 
-      // Analyze last 6 months including selected month
       for (let i = 5; i >= 0; i--) {
         const date = new Date(year, month - i, 1);
         const m = date.getMonth();
@@ -57,12 +55,7 @@ export default function TotalBalanceCard({ month, year }: Props) {
         incomeSnap.forEach((doc) => {
           const d = doc.data();
           const dt = parseDate(d.date);
-          if (
-            dt &&
-            dt.getMonth() === m &&
-            dt.getFullYear() === y &&
-            typeof d.amount === "number"
-          ) {
+          if (dt && dt.getMonth() === m && dt.getFullYear() === y && typeof d.amount === "number") {
             monthIncome += d.amount;
           }
         });
@@ -70,12 +63,7 @@ export default function TotalBalanceCard({ month, year }: Props) {
         expenseSnap.forEach((doc) => {
           const d = doc.data();
           const dt = parseDate(d.date);
-          if (
-            dt &&
-            dt.getMonth() === m &&
-            dt.getFullYear() === y &&
-            typeof d.amount === "number"
-          ) {
+          if (dt && dt.getMonth() === m && dt.getFullYear() === y && typeof d.amount === "number") {
             monthExpense += d.amount;
           }
         });
@@ -87,7 +75,6 @@ export default function TotalBalanceCard({ month, year }: Props) {
           balance,
         });
 
-        // Save current month’s data
         if (m === month && y === year) {
           income = monthIncome;
           expense = monthExpense;
@@ -95,7 +82,7 @@ export default function TotalBalanceCard({ month, year }: Props) {
       }
 
       const current = income - expense;
-      const previous = balances[balances.length - 2]?.balance || 0; // Safely access previous month's balance
+      const previous = balances[balances.length - 2]?.balance || 0;
 
       setData(balances);
       setCurrentIncome(income);
@@ -106,17 +93,12 @@ export default function TotalBalanceCard({ month, year }: Props) {
         const percent = ((current - previous) / Math.abs(previous)) * 100;
         setChange(parseFloat(percent.toFixed(1)));
       } else {
-        // If previous is 0, handle cases where current is also 0 or non-zero
-        if (current !== 0) {
-          setChange(100); // Represents a 100% increase from zero
-        } else {
-          setChange(0); // No change from zero
-        }
+        setChange(current !== 0 ? 100 : 0);
       }
     };
 
     fetchData();
-  }, [month, year]);
+  }, [month, year, user]);
 
   return (
     <Card className="bg-[#161b33] text-white">

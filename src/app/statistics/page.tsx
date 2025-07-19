@@ -8,6 +8,7 @@ import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { useState } from "react"; 
+import { useAuth } from "@/context/AuthContext";
 interface StatsData {
   totalIncome: number;
   totalExpense: number;
@@ -16,6 +17,7 @@ interface StatsData {
 }
 
 export default function StatisticsPage() {
+  const {user} = useAuth();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [aiInsight, setAIInsight] = useState<string>("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -30,7 +32,7 @@ export default function StatisticsPage() {
     setLoadingInsight(true);
 
     try {
-      const res = await fetch(`/api/stats/summary?from=${dateRange.from?.toISOString()}&to=${dateRange.to?.toISOString()}`);
+      const res = await fetch(`/api/stats/summary?from=${dateRange.from?.toISOString()}&to=${dateRange.to?.toISOString()}&uid=${user?.uid}`);
       const data = await res.json();
       setStats(data);
 

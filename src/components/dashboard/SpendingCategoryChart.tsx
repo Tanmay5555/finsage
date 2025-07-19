@@ -10,8 +10,9 @@ import {
   Legend,
 } from "recharts";
 import { useEffect, useState } from "react";
-import { collection, getDocs, Timestamp } from "firebase/firestore"; // Import Timestamp for type safety
+import { collection, getDocs, query, Timestamp, where } from "firebase/firestore"; // Import Timestamp for type safety
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 
 interface SpendingCategoryChartProps {
   month: number;
@@ -30,6 +31,7 @@ const COLORS = [
 
 // Define a more specific type for raw, including Timestamp from Firestore
 const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
+  
   if (!raw) return null;
   if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
   if (typeof raw === "string") return new Date(raw);
@@ -38,18 +40,21 @@ const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | nu
 };
 
 export default function SpendingCategoryChart({ month, year }: SpendingCategoryChartProps) {
+  const {user} = useAuth();
   const [data, setData] = useState<CategoryDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if(!user) return;
     const fetchData = async () => {
       setLoading(true);
       setError(null);
       const categoryMap: Record<string, number> = {};
 
       try {
-        const snapshot = await getDocs(collection(db, "expenses"));
+        const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+        const snapshot = await getDocs(expenseQuery);
         snapshot.forEach((doc) => {
           const d = doc.data();
           const dt = parseDate(d.date);
@@ -78,7 +83,7 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
     };
 
     fetchData();
-  }, [month, year]);
+  }, [month, year, user]);
 
   const selectedMonthName = new Date(year, month).toLocaleString("default", {
     month: "long",

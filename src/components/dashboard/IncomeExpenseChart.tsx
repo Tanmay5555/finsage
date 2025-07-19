@@ -11,8 +11,9 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 
 interface Props {
   year: number;
@@ -30,12 +31,15 @@ const shortMonthNames = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-export default function IncomeExpenseChart({  year }: Props) {
+export default function IncomeExpenseChart({ year }: Props) {
+  const { user } = useAuth(); // ✅ Get current user
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return; // Wait for user auth to load
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -46,7 +50,9 @@ export default function IncomeExpenseChart({  year }: Props) {
       }
 
       try {
-        const incomeSnap = await getDocs(collection(db, "incomes"));
+        const incomeQuery = query(collection(db, "incomes"), where("userId", "==", user.uid));
+        const incomeSnap = await getDocs(incomeQuery);
+
         incomeSnap.forEach((doc) => {
           const d = doc.data();
           const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
@@ -56,7 +62,9 @@ export default function IncomeExpenseChart({  year }: Props) {
           }
         });
 
-        const expenseSnap = await getDocs(collection(db, "expenses"));
+        const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+        const expenseSnap = await getDocs(expenseQuery);
+
         expenseSnap.forEach((doc) => {
           const d = doc.data();
           const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
@@ -82,7 +90,7 @@ export default function IncomeExpenseChart({  year }: Props) {
     };
 
     fetchData();
-  }, [year]);
+  }, [year, user]);
 
   return (
     <Card className="bg-[#161b33] text-white">

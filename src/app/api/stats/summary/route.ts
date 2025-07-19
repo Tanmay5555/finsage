@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
 function parseDateParam(param: string | null): Date | null {
@@ -13,9 +13,18 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const fromDate = parseDateParam(searchParams.get("from"));
     const toDate = parseDateParam(searchParams.get("to"));
+    const uid = searchParams.get("uid");
 
-    const incomesSnap = await getDocs(collection(db, "incomes"));
-    const expensesSnap = await getDocs(collection(db, "expenses"));
+    if (!uid) {
+      return NextResponse.json({ error: "Missing user ID" }, { status: 400 });
+    }
+
+    const incomesSnap = await getDocs(
+      query(collection(db, "incomes"), where("userId", "==", uid))
+    );
+    const expensesSnap = await getDocs(
+      query(collection(db, "expenses"), where("userId", "==", uid))
+    );
 
     let totalIncome = 0;
     let totalExpense = 0;
@@ -23,15 +32,10 @@ export async function GET(req: NextRequest) {
 
     const parseFirestoreDate = (raw: unknown): Date | null => {
       if (!raw) return null;
-
-      if (typeof raw === "string") {
-        const d = new Date(raw);
-        return isNaN(d.getTime()) ? null : d;
-      }
+      if (typeof raw === "string") return new Date(raw);
 
       if (typeof raw === "object" && raw !== null) {
         const r = raw as { toDate?: () => Date; seconds?: number };
-
         if (typeof r.toDate === "function") return r.toDate();
         if (typeof r.seconds === "number") return new Date(r.seconds * 1000);
       }
@@ -73,9 +77,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("❌ /api/stats/summary error:", err);
-    return NextResponse.json(
-      { error: "Failed to fetch stats" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
   }
 }

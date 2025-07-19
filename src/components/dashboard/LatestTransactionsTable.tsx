@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, Timestamp } from "firebase/firestore"; // Import Timestamp for type safety
+import { collection, getDocs, query, Timestamp, where } from "firebase/firestore";
+import { useAuth } from "@/context/AuthContext";
 
 interface LatestTransactionsTableProps {
   month: number;
@@ -23,6 +24,7 @@ interface Transaction {
 }
 
 export default function LatestTransactionsTable({ month, year }: LatestTransactionsTableProps) {
+  const { user } = useAuth();
   const [transactionsToDisplay, setTransactionsToDisplay] = useState<Transaction[]>([]);
   const [allMonthlyTransactions, setAllMonthlyTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,7 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
   const selectedMonthName = new Date(year, month).toLocaleString("default", { month: "long" });
 
   useEffect(() => {
+    if (!user) return;
     // Define a more specific type for raw, including Timestamp from Firestore
     const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
       if (!raw) return null;
@@ -47,7 +50,8 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
       const transactions: Transaction[] = [];
 
       try {
-        const incomeSnap = await getDocs(collection(db, "incomes"));
+        const incomeQuery = query(collection(db, "incomes"), where("userId", "==", user.uid));
+        const incomeSnap = await getDocs(incomeQuery);
         incomeSnap.forEach((doc) => {
           const d = doc.data();
           const dt = parseDate(d.date);
@@ -61,8 +65,8 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
             });
           }
         });
-
-        const expenseSnap = await getDocs(collection(db, "expenses"));
+        const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+        const expenseSnap = await getDocs(expenseQuery);
         expenseSnap.forEach((doc) => {
           const d = doc.data();
           const dt = parseDate(d.date);
@@ -90,7 +94,7 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
     };
 
     fetchTransactions();
-  }, [month, year]);
+  }, [month, year, user]);
 
   const formatDate = (date: Date): string =>
     date.toLocaleDateString("en-US", {
