@@ -20,9 +20,12 @@ export async function POST(req: NextRequest) {
     const tempFilePath = path.join(tmpdir(), `${uuidv4()}-${file.name}`);
     await writeFile(tempFilePath, buffer);
 
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON || "{}");
+
     const client = new ImageAnnotatorClient({
-      keyFilename: path.join(process.cwd(), "google-credentials.json"),
+      credentials,
     });
+
 
     const [result] = await client.textDetection(tempFilePath);
     const text = result.textAnnotations?.[0]?.description || "";
