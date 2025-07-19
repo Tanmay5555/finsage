@@ -12,7 +12,8 @@ import {
     where,
     orderBy,
     getDocs,
-    Timestamp
+    Timestamp,
+    // Timestamp // Removed unused Timestamp import
 } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +22,7 @@ type Income = {
     id: string;
     source: string;
     amount: number;
-    date: string;
+    date: string; // Assuming date is stored as a string or will be converted to string
 };
 
 export default function IncomeList() {
@@ -47,10 +48,22 @@ export default function IncomeList() {
                 );
                 const snapshot = await getDocs(q);
                 console.log("Income docs fetched:", snapshot.size);
-                const data = snapshot.docs.map((doc) => ({
-                    id: doc.id,
-                    ...doc.data(),
-                })) as Income[];
+                // Explicitly cast the data to Income type, ensuring date is handled
+                const data = snapshot.docs.map((doc) => {
+                    const docData = doc.data();
+                    // Assuming 'date' from Firestore can be a Timestamp or string
+                    // Convert Timestamp to ISO string if it's a Timestamp object
+                    const dateString = docData.date instanceof Timestamp
+                        ? docData.date.toDate().toISOString()
+                        : docData.date;
+
+                    return {
+                        id: doc.id,
+                        source: docData.source,
+                        amount: docData.amount,
+                        date: dateString,
+                    } as Income;
+                });
 
                 setIncomes(data);
             } catch (error) {
@@ -88,6 +101,7 @@ export default function IncomeList() {
                                     <div>
                                         <p className="text-sm font-medium">{income.source}</p>
                                         <p className="text-xs text-muted-foreground text-purple-300">
+                                            {/* Ensure income.date is a valid date string for Date constructor */}
                                             {new Date(income.date).toLocaleDateString("en-IN", {
                                                 weekday: "short",
                                                 month: "short",

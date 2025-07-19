@@ -1,9 +1,6 @@
-// app/api/stats/summary/route.ts
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { NextRequest, NextResponse } from "next/server";
-
-export const dynamic = "force-dynamic";
 
 function parseDateParam(param: string | null): Date | null {
   if (!param) return null;
@@ -24,8 +21,7 @@ export async function GET(req: NextRequest) {
     let totalExpense = 0;
     const categoryTotals: Record<string, number> = {};
 
-    // ✅ Fix: support ISO string, Timestamp, or { seconds }
-    const parseFirestoreDate = (raw: any): Date | null => {
+    const parseFirestoreDate = (raw: unknown): Date | null => {
       if (!raw) return null;
 
       if (typeof raw === "string") {
@@ -33,13 +29,17 @@ export async function GET(req: NextRequest) {
         return isNaN(d.getTime()) ? null : d;
       }
 
-      if (typeof raw?.toDate === "function") return raw.toDate(); // Firestore Timestamp
-      if (raw?.seconds) return new Date(raw.seconds * 1000);
+      if (typeof raw === "object" && raw !== null) {
+        const r = raw as { toDate?: () => Date; seconds?: number };
+
+        if (typeof r.toDate === "function") return r.toDate();
+        if (typeof r.seconds === "number") return new Date(r.seconds * 1000);
+      }
 
       return null;
     };
 
-    const isWithinRange = (rawDate: any): boolean => {
+    const isWithinRange = (rawDate: unknown): boolean => {
       const date = parseFirestoreDate(rawDate);
       if (!date) return false;
       if (fromDate && date < fromDate) return false;
@@ -48,33 +48,34 @@ export async function GET(req: NextRequest) {
     };
 
     incomesSnap.forEach((doc) => {
-      const d = doc.data();
-      if (typeof d.amount === "number" && isWithinRange(d.date)) {
-        totalIncome += d.amount;
+      const data = doc.data();
+      if (typeof data.amount === "number" && isWithinRange(data.date)) {
+        totalIncome += data.amount;
       }
     });
 
     expensesSnap.forEach((doc) => {
-      const d = doc.data();
-      if (typeof d.amount === "number" && isWithinRange(d.date)) {
-        totalExpense += d.amount;
-        const category = d.category || "Other";
-        categoryTotals[category] = (categoryTotals[category] || 0) + d.amount;
+      const data = doc.data();
+      if (typeof data.amount === "number" && isWithinRange(data.date)) {
+        totalExpense += data.amount;
+        const category = data.category || "Other";
+        categoryTotals[category] = (categoryTotals[category] || 0) + data.amount;
       }
     });
 
     const savings = totalIncome - totalExpense;
 
-    const result = {
+    return NextResponse.json({
       totalIncome,
       totalExpense,
       savings,
       categoryTotals,
-    };
-
-    return NextResponse.json(result);
+    });
   } catch (err) {
     console.error("❌ /api/stats/summary error:", err);
-    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch stats" },
+      { status: 500 }
+    );
   }
 }

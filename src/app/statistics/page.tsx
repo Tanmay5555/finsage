@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { Download,Sparkles, Brain } from "lucide-react";
+import { Download, Sparkles, Brain } from "lucide-react";
 import * as XLSX from "xlsx";
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
+import { useState } from "react"; 
+interface StatsData {
+  totalIncome: number;
+  totalExpense: number;
+  savings?: number;
+  categoryTotals: Record<string, number>;
+}
 
 export default function StatisticsPage() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [aiInsight, setAIInsight] = useState<string>("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -50,7 +56,10 @@ export default function StatisticsPage() {
       { Label: "Total Income", Amount: stats.totalIncome },
       { Label: "Total Expense", Amount: stats.totalExpense },
       { Label: "Savings", Amount: stats.totalIncome - stats.totalExpense },
-      ...Object.entries(stats.categoryTotals || {}).map(([category, value]) => ({ Label: category, Amount: value }))
+      ...Object.entries(stats.categoryTotals || {}).map(([category, value]) => ({
+        Label: category,
+        Amount: value,
+      })),
     ]);
     XLSX.utils.book_append_sheet(wb, ws, "Statistics");
     XLSX.writeFile(wb, "finsage-statistics.xlsx");
@@ -115,7 +124,7 @@ export default function StatisticsPage() {
         {insightVisible && (
           <Card className="bg-[#161b33] border border-dashed border-blue-500">
             <CardContent className="p-6">
-            <CardTitle className="flex items-center gap-2 text-white mb-6">
+              <CardTitle className="flex items-center gap-2 text-white mb-6">
                 <Brain size={20} className="text-purple-400" /> Finsage AI Insights:
               </CardTitle>
               <div className="text-sm space-y-2">
@@ -124,7 +133,7 @@ export default function StatisticsPage() {
                 ) : aiInsight ? (
                   aiInsight.split(/\n+/).map((line, idx) => (
                     <div key={idx} className="flex items-start gap-2">
-                     <Sparkles size={16} className="text-yellow-400 flex-shrink-0 mt-[2px]" />
+                      <Sparkles size={16} className="text-yellow-400 flex-shrink-0 mt-[2px]" />
                       <p className="text-emerald-300">{line.trim()}</p>
                     </div>
                   ))
@@ -132,7 +141,6 @@ export default function StatisticsPage() {
                   <p className="text-red-300">⚠️ No insights available.</p>
                 )}
               </div>
-
             </CardContent>
           </Card>
         )}

@@ -11,20 +11,25 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast.success("Welcome back 👋");
       router.push("/dashboard");
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Login failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -58,7 +63,7 @@ export default function LoginPage() {
             type="button"
             className="absolute right-3 top-2.5 text-muted-foreground"
             onClick={() => setShowPassword((prev) => !prev)}
-            aria-label="Toggle Password Visibility"
+            aria-label="Toggle password visibility"
           >
             {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
           </button>

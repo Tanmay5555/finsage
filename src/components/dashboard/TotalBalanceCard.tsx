@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { db } from "@/lib/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, Timestamp } from "firebase/firestore"; // Import Timestamp for type safety
 import { useEffect, useState } from "react";
 import {
   ResponsiveContainer,
@@ -26,46 +26,68 @@ export default function TotalBalanceCard({ month, year }: Props) {
   const [data, setData] = useState<{ month: string; balance: number }[]>([]);
   const [change, setChange] = useState<number | null>(null);
 
+  // Define a more specific type for raw, including Timestamp from Firestore
+  const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
+    if (!raw) return null;
+    if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
+    if (typeof raw === "string") return new Date(raw);
+    if (raw instanceof Date) return raw;
+    return null;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       const incomeSnap = await getDocs(collection(db, "incomes"));
       const expenseSnap = await getDocs(collection(db, "expenses"));
 
-      let monthlyData: { [key: string]: number } = {};
+      const balances: { month: string; balance: number }[] = [];
+
       let income = 0;
       let expense = 0;
 
-      // Build balance chart from past 6 months
-      const balances: { month: string; balance: number }[] = [];
-
+      // Analyze last 6 months including selected month
       for (let i = 5; i >= 0; i--) {
-        const d = new Date(year, month - i);
-        const m = d.getMonth();
-        const y = d.getFullYear();
+        const date = new Date(year, month - i, 1);
+        const m = date.getMonth();
+        const y = date.getFullYear();
+
         let monthIncome = 0;
         let monthExpense = 0;
 
         incomeSnap.forEach((doc) => {
-          const data = doc.data();
-          const dt = new Date(data.date);
-          if (dt.getMonth() === m && dt.getFullYear() === y) {
-            monthIncome += data.amount;
+          const d = doc.data();
+          const dt = parseDate(d.date);
+          if (
+            dt &&
+            dt.getMonth() === m &&
+            dt.getFullYear() === y &&
+            typeof d.amount === "number"
+          ) {
+            monthIncome += d.amount;
           }
         });
 
         expenseSnap.forEach((doc) => {
-          const data = doc.data();
-          const dt = new Date(data.date);
-          if (dt.getMonth() === m && dt.getFullYear() === y) {
-            monthExpense += data.amount;
+          const d = doc.data();
+          const dt = parseDate(d.date);
+          if (
+            dt &&
+            dt.getMonth() === m &&
+            dt.getFullYear() === y &&
+            typeof d.amount === "number"
+          ) {
+            monthExpense += d.amount;
           }
         });
 
+        const balance = monthIncome - monthExpense;
+
         balances.push({
-          month: d.toLocaleString("default", { month: "short" }),
-          balance: monthIncome - monthExpense,
+          month: date.toLocaleString("default", { month: "short" }),
+          balance,
         });
 
+        // Save current month’s data
         if (m === month && y === year) {
           income = monthIncome;
           expense = monthExpense;
@@ -73,17 +95,23 @@ export default function TotalBalanceCard({ month, year }: Props) {
       }
 
       const current = income - expense;
-      const previous = balances[balances.length - 2]?.balance || 0;
+      const previous = balances[balances.length - 2]?.balance || 0; // Safely access previous month's balance
 
       setData(balances);
-      setCurrentBalance(current);
       setCurrentIncome(income);
       setCurrentExpense(expense);
+      setCurrentBalance(current);
+
       if (previous !== 0) {
-        const percent = ((current - previous) / previous) * 100;
+        const percent = ((current - previous) / Math.abs(previous)) * 100;
         setChange(parseFloat(percent.toFixed(1)));
       } else {
-        setChange(null);
+        // If previous is 0, handle cases where current is also 0 or non-zero
+        if (current !== 0) {
+          setChange(100); // Represents a 100% increase from zero
+        } else {
+          setChange(0); // No change from zero
+        }
       }
     };
 
@@ -93,8 +121,8 @@ export default function TotalBalanceCard({ month, year }: Props) {
   return (
     <Card className="bg-[#161b33] text-white">
       <CardContent className="p-4 space-y-4">
-        <h2 className="text-lg font-semibold">Total Balance</h2>
-        <div className="text-4xl font-bold text-white">₹{currentBalance}</div>
+        <h2 className="text-lg font-semibold">💰 Total Balance</h2>
+        <div className="text-4xl font-bold text-white">₹{currentBalance.toFixed(2)}</div>
 
         {change !== null && (
           <p
@@ -109,10 +137,10 @@ export default function TotalBalanceCard({ month, year }: Props) {
 
         <div className="flex justify-between gap-4 text-sm mt-2">
           <p className="text-green-400">
-            Income: <span className="font-semibold">₹{currentIncome}</span>
+            Income: <span className="font-semibold">₹{currentIncome.toFixed(2)}</span>
           </p>
           <p className="text-red-400">
-            Expense: <span className="font-semibold">₹{currentExpense}</span>
+            Expense: <span className="font-semibold">₹{currentExpense.toFixed(2)}</span>
           </p>
         </div>
 

@@ -1,36 +1,49 @@
-import { IncomingForm } from "formidable";
+import { IncomingForm, Fields, Files } from "formidable";
 import { Readable } from "stream";
+import type { IncomingMessage } from "http";
+import { Socket } from "net"; // ✅ Required for stream.socket
 
-export async function parseForm(request: Request): Promise<{ fields: any; files: any }> {
-  const contentType = request.headers.get("content-type") || "";
-  const contentLength = request.headers.get("content-length") || "";
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
-  const buffers: Uint8Array[] = [];
+export async function parseForm(request: Request): Promise<{ fields: Fields; files: Files }> {
+  const contentType = request.headers.get("content-type");
+  const contentLength = request.headers.get("content-length");
+
+  if (!contentType || !contentLength) {
+    throw new Error("Missing content-type or content-length");
+  }
+
   const reader = request.body?.getReader();
-
   if (!reader) throw new Error("Request body reader not available");
 
+  const chunks: Uint8Array[] = [];
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    if (value) buffers.push(value);
+    if (value) chunks.push(value);
   }
 
-  const stream = Readable.from(Buffer.concat(buffers));
+  const buffer = Buffer.concat(chunks);
 
-  const form = new IncomingForm({
-    multiples: false,
-    keepExtensions: true,
-  });
+  const stream = Readable.from(buffer) as unknown as IncomingMessage;
 
-  // Pass headers manually for formidable to work
-  (stream as any).headers = {
+  stream.headers = {
     "content-type": contentType,
     "content-length": contentLength,
   };
 
-  return new Promise((resolve, reject) => {
-    form.parse(stream as any, (err, fields, files) => {
+  stream.method = "POST";
+  stream.url = "";
+  stream.socket = new Socket();
+
+  const form = new IncomingForm({ keepExtensions: true });
+
+  return new Promise<{ fields: Fields; files: Files }>((resolve, reject) => {
+    form.parse(stream, (err, fields, files) => {
       if (err) reject(err);
       else resolve({ fields, files });
     });

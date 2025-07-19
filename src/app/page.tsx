@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { InteractiveGridPattern } from "@/components/magicui/interactive-grid-pattern";
-import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Home() {

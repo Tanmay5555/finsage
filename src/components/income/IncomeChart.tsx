@@ -14,7 +14,7 @@ import {
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type ChartData = {
@@ -22,17 +22,18 @@ type ChartData = {
   income: number;
 };
 
+const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 export default function IncomeChart() {
   const { user } = useAuth();
   const [data, setData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
   useEffect(() => {
     const fetchIncomeData = async () => {
       if (!user) return;
       setLoading(true);
+
       try {
         const q = query(collection(db, "incomes"), where("userId", "==", user.uid));
         const snapshot = await getDocs(q);
@@ -41,14 +42,26 @@ export default function IncomeChart() {
 
         snapshot.forEach((doc) => {
           const income = doc.data();
-          const dateStr = income.date;
-          const parsed = parseISO(dateStr);
-          const month = format(parsed, "MMM");
+          const rawDate = income.date;
 
-          monthlyTotals[month] = (monthlyTotals[month] || 0) + income.amount || 0;
+          let parsedDate: Date | null = null;
+
+          if (typeof rawDate === "string") {
+            parsedDate = parseISO(rawDate);
+          } else if (rawDate?.seconds) {
+            parsedDate = new Date(rawDate.seconds * 1000);
+          } else if (rawDate instanceof Date) {
+            parsedDate = rawDate;
+          }
+
+          if (!parsedDate || !isValid(parsedDate)) return;
+
+          const month = format(parsedDate, "MMM");
+          const amount = Number(income.amount || 0);
+
+          monthlyTotals[month] = (monthlyTotals[month] || 0) + amount;
         });
 
-        // Ensure all months are shown (even with 0 income)
         const chartData: ChartData[] = monthOrder.map((m) => ({
           name: m,
           income: monthlyTotals[m] || 0,
@@ -82,6 +95,7 @@ export default function IncomeChart() {
                   contentStyle={{ backgroundColor: "#1e213a", border: "none" }}
                   labelStyle={{ color: "#60a5fa" }}
                   itemStyle={{ color: "#60a5fa" }}
+                  formatter={(value: number) => [`₹${value.toFixed(2)}`, "Income"]}
                 />
                 <Bar dataKey="income" fill="#60a5fa" radius={[4, 4, 0, 0]} />
               </BarChart>

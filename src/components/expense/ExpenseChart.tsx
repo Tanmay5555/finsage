@@ -12,7 +12,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"; // Import Timestamp for type safety
 import { useAuth } from "@/context/AuthContext";
 import dayjs from "dayjs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,30 +22,55 @@ type MonthlyExpense = {
   expense: number;
 };
 
+// Define an interface for the expense data retrieved from Firestore
+interface ExpenseData {
+  date: Timestamp | string | Date; // Can be Timestamp, string, or Date
+  amount: number;
+  // Add other properties if they exist in your expense documents, e.g., category: string;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 export default function ExpenseChart() {
   const { user } = useAuth();
   const [chartData, setChartData] = useState<MonthlyExpense[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Define a more specific type for raw, including Timestamp from Firestore
+  const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
+    if (!raw) return null;
+    if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
+    if (typeof raw === "string") return new Date(raw);   // ISO string
+    if (raw instanceof Date) return raw;
+    return null;
+  };
+
   useEffect(() => {
     const fetchExpenses = async () => {
       if (!user) return;
       setLoading(true);
+
       try {
         const q = query(collection(db, "expenses"), where("userId", "==", user.uid));
         const snapshot = await getDocs(q);
-        const rawExpenses = snapshot.docs.map((doc) => doc.data());
+        // Type rawExpenses as an array of ExpenseData
+        const rawExpenses: ExpenseData[] = snapshot.docs.map((doc) => doc.data() as ExpenseData);
 
         const monthly: Record<string, number> = {};
-        rawExpenses.forEach((exp: any) => {
-          const month = dayjs(exp.date).format("MMM");
+
+        // Type exp as ExpenseData
+        rawExpenses.forEach((exp: ExpenseData) => {
+          const dt = parseDate(exp.date);
+          if (!dt) return;
+
+          const month = dayjs(dt).format("MMM");
+          // Ensure exp.amount is treated as a number
           monthly[month] = (monthly[month] || 0) + Number(exp.amount || 0);
         });
 
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const data = months.map((m) => ({
-          name: m,
-          expense: monthly[m] || 0,
+        const data: MonthlyExpense[] = MONTHS.map((month) => ({
+          name: month,
+          expense: monthly[month] || 0,
         }));
 
         setChartData(data);
@@ -76,6 +101,7 @@ export default function ExpenseChart() {
                   contentStyle={{ backgroundColor: "#1e213a", border: "none" }}
                   labelStyle={{ color: "#f87171" }}
                   itemStyle={{ color: "#f87171" }}
+                  formatter={(value: number) => [`₹${value.toFixed(2)}`, "Expense"]}
                 />
                 <Bar dataKey="expense" fill="#f87171" radius={[4, 4, 0, 0]} />
               </BarChart>
