@@ -24,7 +24,7 @@ type ChartData = {
 
 const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export default function IncomeChart() {
+export default function IncomeChart({ refreshKey = 0 }: { refreshKey?: number }) {
   const { user } = useAuth();
   const [data, setData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +76,7 @@ export default function IncomeChart() {
     };
 
     fetchIncomeData();
-  }, [user]);
+  }, [user, refreshKey]);
 
   return (
     <Card className="bg-[#161b33] text-white h-full min-h-[300px]">

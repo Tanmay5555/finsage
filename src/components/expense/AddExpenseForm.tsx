@@ -13,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-export default function AddExpenseForm() {
+export default function AddExpenseForm({ onAdded }: { onAdded?: () => void }) {
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -90,6 +90,11 @@ export default function AddExpenseForm() {
       return;
     }
 
+    if (parseFloat(amount) <= 0) {
+      toast.error("Amount must be greater than 0");
+      return;
+    }
+
     if (!user) {
       toast.error("User not authenticated");
       return;
@@ -109,6 +114,8 @@ export default function AddExpenseForm() {
       setCategory("");
       setCustomCategory("");
       setDate(new Date());
+
+      if (onAdded) onAdded();
     } catch (err) {
       console.error("Error adding expense:", err);
       toast.error("Failed to add expense");

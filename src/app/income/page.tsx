@@ -5,8 +5,11 @@ import DashboardLayout from "@/components/layouts/DashboardLayout";
 import AddIncomeForm from "@/components/income/AddIncomeForm";
 import IncomeList from "@/components/income/IncomeList";
 import IncomeChart from "@/components/income/IncomeChart";
+import { useState } from "react";
 
 export default function IncomePage() {
+  const [refreshKey, setRefreshKey] = useState(0);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -21,13 +24,13 @@ export default function IncomePage() {
         {/* Charts + Form */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
-            <IncomeChart />
+            <IncomeChart refreshKey={refreshKey}/>
           </div>
-          <AddIncomeForm />
+          <AddIncomeForm onAdded={() => setRefreshKey((prev) => prev + 1)} />
         </div>
 
         {/* Latest Incomes */}
-        <IncomeList />
+        <IncomeList refreshKey={refreshKey} />
       </div>
     </DashboardLayout>
   );

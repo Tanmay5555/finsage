@@ -31,7 +31,7 @@ interface ExpenseData {
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export default function ExpenseChart() {
+export default function ExpenseChart({ refreshKey = 0 }: { refreshKey?: number }) {
   const { user } = useAuth();
   const [chartData, setChartData] = useState<MonthlyExpense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +82,7 @@ export default function ExpenseChart() {
     };
 
     fetchExpenses();
-  }, [user]);
+  }, [user, refreshKey]);
 
   return (
     <Card className="bg-[#161b33] text-white h-full min-h-[300px]">

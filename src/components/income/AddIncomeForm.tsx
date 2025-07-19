@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,8 @@ const sourceOptions = [
   "Other",
 ];
 
-export default function AddIncomeForm() {
+export default function AddIncomeForm({ onAdded }: { onAdded: () => void }) {
+  const router = useRouter();
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState("");
@@ -36,12 +38,10 @@ export default function AddIncomeForm() {
     if (!file) return toast.error("Please select a file");
 
     setLoading(true);
-
     try {
       const formData = new FormData();
       formData.append("receipt", file);
 
-      // OCR API
       const ocrRes = await fetch("/api/ocr", {
         method: "POST",
         body: formData,
@@ -51,7 +51,6 @@ export default function AddIncomeForm() {
 
       if (!extractedText) throw new Error("No text extracted");
 
-      // Gemini API
       const geminiRes = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,21 +92,22 @@ export default function AddIncomeForm() {
       return;
     }
 
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) {
+      toast.error("Amount must be a positive number.");
+      return;
+    }
+
     try {
       await addDoc(collection(db, "incomes"), {
-        amount: parseFloat(amount),
+        amount: amt,
         source: finalSource,
         date: date.toISOString(),
         userId: user?.uid,
         createdAt: Timestamp.now(),
       });
-
       toast.success("✅ Income added");
-      setAmount("");
-      setSource("");
-      setCustomSource("");
-      setShowCustomSource(false);
-      setDate(new Date());
+      onAdded?.();
     } catch (err) {
       console.error("Firestore error:", err);
       toast.error("Failed to add income");
@@ -121,8 +121,6 @@ export default function AddIncomeForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-
-          {/* Upload Receipt */}
           <div className="space-y-1">
             <Label className="text-sm text-white">Upload Payslip / Income Proof (Optional)</Label>
             <Input
@@ -135,7 +133,6 @@ export default function AddIncomeForm() {
             {loading && <p className="text-sm text-muted-foreground">Extracting details...</p>}
           </div>
 
-          {/* Amount */}
           <div className="space-y-1">
             <Label htmlFor="amount" className="text-sm text-white">Amount (₹)</Label>
             <div className="relative">
@@ -151,7 +148,6 @@ export default function AddIncomeForm() {
             </div>
           </div>
 
-          {/* Source Dropdown */}
           <div className="space-y-1">
             <Label htmlFor="source" className="text-sm text-white">Source</Label>
             <select
@@ -183,7 +179,6 @@ export default function AddIncomeForm() {
             )}
           </div>
 
-          {/* Date Picker */}
           <div className="space-y-1">
             <Label htmlFor="date" className="text-sm text-white">Date</Label>
             <div className="relative">

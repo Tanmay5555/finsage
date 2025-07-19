@@ -17,7 +17,7 @@ type Expense = {
   date: string;
 };
 
-export default function ExpenseList() {
+export default function ExpenseList({ refreshKey = 0 }: { refreshKey?: number }) {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +46,7 @@ export default function ExpenseList() {
     };
 
     fetchExpenses();
-  }, [user]);
+  }, [user, refreshKey]);
 
   return (
     <Card className="bg-[#161b33] text-white h-full">
