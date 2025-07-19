@@ -36,7 +36,7 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
   useEffect(() => {
     const parseDate = (raw: any): Date | null => {
       if (!raw) return null;
-      if (raw.seconds) return new Date(raw.seconds * 1000); // Firestore Timestamp
+      if (raw.seconds) return new Date(raw.seconds * 1000);
       if (typeof raw === "string") return new Date(raw);
       if (raw instanceof Date) return raw;
       return null;
@@ -104,7 +104,7 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
                     cy="50%"
                     outerRadius={80}
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => percent && percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
                     isAnimationActive
                     animationDuration={800}
                   >

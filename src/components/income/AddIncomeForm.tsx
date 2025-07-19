@@ -124,7 +124,7 @@ export default function AddIncomeForm() {
 
                     {/* Upload Receipt */}
                     <div className="space-y-1">
-                        <Label className="text-sm text-white">Upload Payslip / Income Proof</Label>
+                        <Label className="text-sm text-white">Upload Payslip / Income Proof (Optional)</Label>
                         <Input type="file" accept="image/*" onChange={handleReceiptUpload} disabled={loading} className="text-white file:text-white file:bg-[#1f2547] file:border-none" />
                         {loading && <p className="text-sm text-muted-foreground">Extracting...</p>}
                     </div>

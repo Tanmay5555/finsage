@@ -125,7 +125,7 @@ export default function AddExpenseForm() {
 
           {/* Upload Receipt */}
           <div className="space-y-1">
-            <Label className="text-sm text-white">Upload Receipt</Label>
+            <Label className="text-sm text-white">Upload Receipt (Optional)</Label>
             <Input
               type="file"
               accept="image/*"

@@ -72,7 +72,7 @@ export default function ExpenseList() {
                 >
                   <div>
                     <p className="text-sm font-medium">{expense.category}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground text-purple-300">
                       {new Date(expense.date).toLocaleDateString("en-IN", {
                         weekday: "short",
                         month: "short",

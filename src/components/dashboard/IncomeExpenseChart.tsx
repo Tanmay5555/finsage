@@ -30,7 +30,7 @@ const shortMonthNames = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-export default function IncomeExpenseChart({ month, year }: Props) {
+export default function IncomeExpenseChart({  year }: Props) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +87,7 @@ export default function IncomeExpenseChart({ month, year }: Props) {
   return (
     <Card className="bg-[#161b33] text-white">
       <CardContent className="p-4">
-        <h2 className="text-lg font-semibold mb-2">Income & Expenses by Month ({year})</h2>
+        <h2 className="text-lg font-semibold mb-2">Income & Expenses by Month (F.Y. {year})</h2>
         {loading && <div className="text-center text-gray-400">Loading...</div>}
         {error && <div className="text-center text-red-400">{error}</div>}
         {!loading && !error && data.length > 0 && (

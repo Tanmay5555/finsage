@@ -27,15 +27,14 @@ export default function IncomeChart() {
   const [data, setData] = useState<ChartData[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
   useEffect(() => {
     const fetchIncomeData = async () => {
       if (!user) return;
       setLoading(true);
       try {
-        const q = query(
-          collection(db, "incomes"),
-          where("userId", "==", user.uid)
-        );
+        const q = query(collection(db, "incomes"), where("userId", "==", user.uid));
         const snapshot = await getDocs(q);
 
         const monthlyTotals: Record<string, number> = {};
@@ -46,20 +45,14 @@ export default function IncomeChart() {
           const parsed = parseISO(dateStr);
           const month = format(parsed, "MMM");
 
-          if (!monthlyTotals[month]) {
-            monthlyTotals[month] = 0;
-          }
-
-          monthlyTotals[month] += income.amount || 0;
+          monthlyTotals[month] = (monthlyTotals[month] || 0) + income.amount || 0;
         });
 
-        const chartData: ChartData[] = Object.entries(monthlyTotals).map(
-          ([name, income]) => ({ name, income })
-        );
-
-        // Optional: sort months in order
-        const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        chartData.sort((a, b) => monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name));
+        // Ensure all months are shown (even with 0 income)
+        const chartData: ChartData[] = monthOrder.map((m) => ({
+          name: m,
+          income: monthlyTotals[m] || 0,
+        }));
 
         setData(chartData);
       } catch (error) {
@@ -73,10 +66,10 @@ export default function IncomeChart() {
   }, [user]);
 
   return (
-    <Card className="bg-[#161b33] text-white">
-      <CardContent className="p-4">
-        <h2 className="text-lg font-semibold mb-2">Income Trend</h2>
-        <div className="h-64">
+    <Card className="bg-[#161b33] text-white h-full min-h-[300px]">
+      <CardContent className="p-4 flex flex-col h-full">
+        <h2 className="text-lg font-semibold mb-2">📈 Income Trend</h2>
+        <div className="flex-grow">
           {loading ? (
             <Skeleton className="w-full h-full rounded-md bg-muted/30" />
           ) : (
@@ -87,8 +80,8 @@ export default function IncomeChart() {
                 <YAxis stroke="#c3c3c3" />
                 <Tooltip
                   contentStyle={{ backgroundColor: "#1e213a", border: "none" }}
-                  labelStyle={{ color: "#fbbf24" }}
-                  itemStyle={{ color: "#fbbf24" }}
+                  labelStyle={{ color: "#60a5fa" }}
+                  itemStyle={{ color: "#60a5fa" }}
                 />
                 <Bar dataKey="income" fill="#60a5fa" radius={[4, 4, 0, 0]} />
               </BarChart>

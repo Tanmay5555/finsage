@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { collection, getDocs, Timestamp } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
@@ -32,87 +32,75 @@ const monthNames = [
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+const parseDate = (raw: any): Date | null => {
+  if (!raw) return null;
+  if (raw.seconds) return new Date(raw.seconds * 1000);
+  if (typeof raw === "string") return new Date(raw);
+  if (raw instanceof Date) return raw;
+  return null;
+};
+
 export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
   const [data, setData] = useState<SavingsDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchYearlyData = async () => {
+    const fetchData = async () => {
       setLoading(true);
-  
-      const monthly: SavingsDataPoint[] = Array.from({ length: 12 }, (_, i) => ({
-        month: monthNames[i],
+
+      const monthlyData: SavingsDataPoint[] = monthNames.map((month) => ({
+        month,
         income: 0,
         expense: 0,
         savings: 0,
       }));
-  
+
       try {
         const [incomeSnap, expenseSnap] = await Promise.all([
           getDocs(collection(db, "incomes")),
           getDocs(collection(db, "expenses")),
         ]);
-  
-        // Handle income documents
-        incomeSnap.forEach((docSnap) => {
-          const data = docSnap.data();
-          let date: Date | null = null;
-  
-          if (data.date?.seconds) {
-            date = new Date(data.date.seconds * 1000);
-          } else if (typeof data.date?.toDate === "function") {
-            date = data.date.toDate();
-          }
-  
-          if (date && date.getFullYear() === year && typeof data.amount === "number") {
+
+        incomeSnap.forEach((doc) => {
+          const d = doc.data();
+          const date = parseDate(d.date);
+          if (date && date.getFullYear() === year) {
             const monthIndex = date.getMonth();
-            monthly[monthIndex].income += data.amount;
-  
-            console.log(`📥 Income [${monthNames[monthIndex]}]: ₹${data.amount}`);
+            monthlyData[monthIndex].income += d.amount || 0;
           }
         });
-  
-        // Handle expense documents
-        expenseSnap.forEach((docSnap) => {
-          const data = docSnap.data();
-          let date: Date | null = null;
-  
-          if (data.date?.seconds) {
-            date = new Date(data.date.seconds * 1000);
-          } else if (typeof data.date?.toDate === "function") {
-            date = data.date.toDate();
-          }
-  
-          if (date && date.getFullYear() === year && typeof data.amount === "number") {
+
+        expenseSnap.forEach((doc) => {
+          const d = doc.data();
+          const date = parseDate(d.date);
+          if (date && date.getFullYear() === year) {
             const monthIndex = date.getMonth();
-            monthly[monthIndex].expense += data.amount;
-  
-            console.log(`📤 Expense [${monthNames[monthIndex]}]: ₹${data.amount}`);
+            monthlyData[monthIndex].expense += d.amount || 0;
           }
         });
-  
-        monthly.forEach((entry) => {
+
+        monthlyData.forEach((entry) => {
           entry.savings = entry.income - entry.expense;
         });
-  
-        console.log("📊 Final Monthly Data:", monthly);
-        setData(monthly);
+
+        setData(monthlyData);
       } catch (error) {
-        console.error("❌ Error fetching savings trend data:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
-  
-    fetchYearlyData();
+
+    fetchData();
   }, [year]);
-  
 
   const handleDownloadCSV = () => {
     const header = "Month,Income,Expenses,Savings\n";
-    const rows = data.map((d) => `${d.month},${d.income},${d.expense},${d.savings}`).join("\n");
-    const csv = header + rows;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const rows = data
+      .map((d) => `${d.month},${d.income},${d.expense},${d.savings}`)
+      .join("\n");
+
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
@@ -147,11 +135,12 @@ export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
               <XAxis dataKey="month" stroke="#c3c3c3" />
               <YAxis stroke="#c3c3c3" />
               <Tooltip
-                contentStyle={{ backgroundColor: "#1e213a", border: "none", borderRadius: 8 }}
+                contentStyle={{ backgroundColor: "#1e213a", borderRadius: 8 }}
                 labelStyle={{ color: "#c3c3c3" }}
-                formatter={(value: number, name: string) =>
-                  [`₹${value.toFixed(2)}`, name.charAt(0).toUpperCase() + name.slice(1)]
-                }
+                formatter={(value: number, name: string) => [
+                  `₹${value.toFixed(2)}`,
+                  name.charAt(0).toUpperCase() + name.slice(1),
+                ]}
               />
               <Line
                 type="monotone"

@@ -87,7 +87,7 @@ export default function IncomeList() {
                                 >
                                     <div>
                                         <p className="text-sm font-medium">{income.source}</p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground text-purple-300">
                                             {new Date(income.date).toLocaleDateString("en-IN", {
                                                 weekday: "short",
                                                 month: "short",

@@ -9,7 +9,7 @@ import AddExpenseForm from "@/components/expense/AddExpenseForm";
 export default function ExpensePage() {
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-6">
+      <div className="space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold">Expense Management</h1>
@@ -20,13 +20,15 @@ export default function ExpensePage() {
 
         {/* Chart + Form */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ExpenseChart />
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 min-h-[300px]">
+            <ExpenseChart />
+          </div>
+          <div className="min-h-[300px]">
             <AddExpenseForm />
           </div>
         </div>
 
-        {/* List of Expenses */}
+        {/* Expense List */}
         <ExpenseList />
       </div>
     </DashboardLayout>
