@@ -4,18 +4,25 @@ import { ImageAnnotatorClient } from "@google-cloud/vision";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function loadVisionCredentials() {
+interface VisionCredentials {
+  private_key: string;
+  client_email: string;
+  [k: string]: unknown;
+}
+
+function loadVisionCredentials(): VisionCredentials {
   const b64 = process.env.GOOGLE_CREDENTIALS_JSON_BASE64;
   const raw = b64
     ? Buffer.from(b64, "base64").toString("utf8")
     : process.env.GOOGLE_CREDENTIALS_JSON || "{}";
+
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(raw) as VisionCredentials;
     if (!parsed.private_key || !parsed.client_email) {
       throw new Error("Missing credential key fields");
     }
     return parsed;
-  } catch (e) {
+  } catch {
     console.error("Credential parse failed head:", raw.slice(0, 80));
     throw new Error("Invalid Vision credentials JSON");
   }
@@ -36,10 +43,13 @@ async function extractPdfEmbedded(buffer: Buffer, debug = false): Promise<string
   }
 }
 
-async function extractWithVision(buffer: Buffer, credentials: any, debug = false): Promise<string> {
+async function extractWithVision(
+  buffer: Buffer,
+  credentials: VisionCredentials,
+  debug = false
+): Promise<string> {
   const client = new ImageAnnotatorClient({ credentials, fallback: true });
 
-  // documentTextDetection first (richer layout)
   const [docResult] = await client.documentTextDetection({ image: { content: buffer } });
   let text =
     docResult.fullTextAnnotation?.text ||
@@ -50,7 +60,6 @@ async function extractWithVision(buffer: Buffer, credentials: any, debug = false
     console.log("[OCR] documentTextDetection length:", text.length);
   }
 
-  // fallback to basic textDetection if still empty
   if (!text.trim()) {
     const [simple] = await client.textDetection({ image: { content: buffer } });
     const alt =
@@ -101,23 +110,18 @@ export async function POST(req: NextRequest) {
     let text = "";
 
     if (mime === "application/pdf") {
-      // 1. Try embedded text
       text = await extractPdfEmbedded(buffer, debug);
-      // quick heuristic: accept if reasonably substantial
       if (text.trim().length < 15) {
         if (debug) console.log("[OCR] Embedded PDF text too short; falling back to Vision");
         text = "";
       }
-      // 2. If still empty, Vision OCR
       if (!text.trim()) {
         text = await extractWithVision(buffer, credentials, debug);
       }
     } else {
-      // Image path
       text = await extractWithVision(buffer, credentials, debug);
     }
 
-    // Final heuristic: remove excessive null bytes / control chars
     text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "").trim();
 
     if (!text) {
@@ -131,7 +135,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (debug) console.log("[OCR] Final returned length:", text.length);
-    return NextResponse.json({ text, source: mime === "application/pdf" ? "pdf-hybrid" : "vision" });
+    return NextResponse.json({
+      text,
+      source: mime === "application/pdf" ? "pdf-hybrid" : "vision",
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("OCR route error:", message);
