@@ -2,7 +2,7 @@
 
 *A modern, privacy‑aware Personal Finance Assistant built with Next.js, Firebase, Tailwind CSS, and shadcn/ui.*
 
-> **Goal:** Provide a production‑grade, extensible SaaS‑style web app for tracking income & expenses, extracting data from receipts / statements (OCR + AI), generating monthly insights, and visualizing financial health trends.
+> **Goal:** Provide an extensible SaaS‑style web app for tracking income & expenses, extracting data from receipts/statements (OCR + AI), generating monthly insights, and visualizing financial health trends.
 
 ---
 
@@ -48,6 +48,8 @@
 ---
 
 ## Architecture Overview
+<img width="3840" height="2560" alt="Flow-Diagram" src="https://github.com/user-attachments/assets/0f3c3acd-0094-4865-a9f5-27baa92be225" />
+
 
 ```
 Browser (React Components)
@@ -118,7 +120,6 @@ http://localhost:3000
 2. Enable **Authentication** (Email/Password).
 3. Create **Firestore** (production mode with security rules referencing `request.auth.uid`).
 5. Copy config → `.env.local` as `NEXT_PUBLIC_FIREBASE_*` variables.
-6. Deploy security rules (example snippet):
 
 ---
 
