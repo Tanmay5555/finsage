@@ -2,9 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+/* ---------- Helpers ---------- */
+
 function normalizeNumberString(str: string): string {
-  // remove commas only between digits
+  // Remove commas only between digits (thousands separators)
   return str.replace(/(?<=\d),(?=\d)/g, "");
+}
+
+interface CandidatePart {
+  text?: string;
+}
+
+interface CandidateContent {
+  parts?: CandidatePart[];
+}
+
+interface GeminiCandidate {
+  content?: CandidateContent;
+}
+
+interface GeminiResponse {
+  candidates?: GeminiCandidate[];
 }
 
 function heuristicAmount(ocr: string): number | null {
@@ -27,22 +45,20 @@ function heuristicAmount(ocr: string): number | null {
   for (const line of lines) {
     const lower = line.toLowerCase();
     if (keywords.some(k => lower.includes(k))) {
-      // capture numbers with optional commas and decimals
       const nums = line.match(/\d[\d,]*\.?\d*/g) || [];
       for (const raw of nums) {
         const cleaned = normalizeNumberString(raw);
         if (!cleaned) continue;
-        const num = parseFloat(cleaned);
-        if (!isNaN(num)) {
-          // weight: later lines & presence of "net" or "total" give higher score
-            let score = 0;
-            if (/net/.test(lower)) score += 3;
-            if (/total/.test(lower)) score += 2;
-            if (/earnings|salary/.test(lower)) score += 2;
-            if (/grand/.test(lower)) score += 1;
-            // magnitude preference (> 100 typical for salaries)
-            if (num > 100) score += 1;
-            candidates.push({ score, value: num });
+        const num = Number.parseFloat(cleaned);
+        if (!Number.isNaN(num)) {
+          let score = 0;
+          if (/net/.test(lower)) score += 3;
+          if (/total/.test(lower)) score += 2;
+          if (/earnings|salary/.test(lower)) score += 2;
+          if (/grand/.test(lower)) score += 1;
+            // Prefer realistic salary magnitudes
+          if (num > 100) score += 1;
+          candidates.push({ score, value: num });
         }
       }
     }
@@ -53,21 +69,25 @@ function heuristicAmount(ocr: string): number | null {
   return candidates[0].value;
 }
 
+/* ---------- Route Handler ---------- */
+
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
+    const body = (await req.json()) as { text?: string };
+    const text = body?.text;
+
     if (!text) {
       return NextResponse.json({ error: "No text provided" }, { status: 400 });
     }
 
-    // First try heuristic directly from OCR (fast & avoids model truncation)
+    // 1. Heuristic first (fast, no model call)
     const heuristic = heuristicAmount(text);
     if (heuristic !== null) {
       return NextResponse.json({ amount: heuristic, source: "heuristic" });
     }
 
-    // Otherwise use Gemini
-    const normalizedOCR = text.replace(/(?<=\d),(?=\d)/g, ""); // remove numeric commas
+    // 2. Model fallback
+    const normalizedOCR = normalizeNumberString(text);
 
     const prompt = `
 You are a financial extraction assistant.
@@ -78,12 +98,12 @@ From the OCR text below, identify the final payable amount. Look for the most re
 Rules:
 - Return ONLY the numeric value
 - No commas, currency symbols, words, or formatting
-- If you see 15,000.00 or 15,000 output 15000 or 15000.00
+- If you see 15,000.00 or 15,000 output 15000.00 (preserve decimals if present)
 - Prefer the *net* or *final* amount if multiple similar numbers appear.
 
 OCR TEXT:
 """${normalizedOCR}"""
-`;
+`.trim();
 
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -92,10 +112,7 @@ OCR TEXT:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 20,
-          },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 20 },
         }),
       }
     );
@@ -107,28 +124,35 @@ OCR TEXT:
       );
     }
 
-    const result = await geminiRes.json();
-    let rawText: string | undefined =
-      result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const result = (await geminiRes.json()) as GeminiResponse;
+    let rawText =
+      result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     if (!rawText) {
-      return NextResponse.json({ error: "No valid response from Gemini" }, { status: 502 });
+      return NextResponse.json(
+        { error: "No valid response from Gemini" },
+        { status: 502 }
+      );
     }
 
-    // Clean commas in model output
     rawText = normalizeNumberString(rawText);
-
-    // More permissive regex: digits, optional internal commas (already stripped), optional decimals
     const match = rawText.match(/\d+(?:\.\d+)?/);
-    const amount = match ? parseFloat(match[0]) : null;
+    const amount = match ? Number.parseFloat(match[0]) : null;
 
-    if (!amount) {
-      return NextResponse.json({ error: "Failed to extract amount" }, { status: 422 });
+    if (amount == null || Number.isNaN(amount)) {
+      return NextResponse.json(
+        { error: "Failed to extract amount" },
+        { status: 422 }
+      );
     }
 
     return NextResponse.json({ amount, source: "gemini" });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("❌ Gemini route error:", err);
-    return NextResponse.json({ error: "Server error", message: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server error", message },
+      { status: 500 }
+    );
   }
 }

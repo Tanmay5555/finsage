@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ImageAnnotatorClient } from "@google-cloud/vision";
 import pdfParse from "pdf-parse";
-import { CloudCog } from "lucide-react";
+
+// export const dynamic = "force-dynamic"; // Uncomment if needed in App Router
 
 function loadVisionCredentials() {
   const b64 = process.env.GOOGLE_CREDENTIALS_JSON_BASE64;
@@ -14,32 +15,30 @@ function loadVisionCredentials() {
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get("receipt");
+    const fileEntry = formData.get("receipt");
 
-    if (!file || !(file instanceof File)) {
+    if (!(fileEntry instanceof File)) {
       return NextResponse.json({ error: "No valid file uploaded" }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const mime = file.type;
+    const buffer = Buffer.from(await fileEntry.arrayBuffer());
+    const mime = fileEntry.type;
     let text = "";
 
     if (mime === "application/pdf") {
-      // 1. Try embedded text first
+      // 1. Try extracting embedded text
       try {
         const parsed = await pdfParse(buffer);
         text = parsed.text || "";
-        // console.log("PDF text", text);
-      } catch (e) {
-        console.warn("pdf-parse failed, continuing to Vision fallback:", e);
+      } catch (parseErr) {
+        console.warn("pdf-parse failed; attempting Vision fallback");
       }
 
-      // 2. Fallback to Vision if empty
+      // 2. Fallback to Vision OCR if no embedded text
       if (!text.trim()) {
         const credentials = loadVisionCredentials();
         const client = new ImageAnnotatorClient({ credentials });
 
-        // documentTextDetection works for PDFs (small) or images
         const [visionResult] = await client.documentTextDetection({
           image: { content: buffer },
         });
@@ -48,19 +47,20 @@ export async function POST(req: NextRequest) {
         if (!text.trim()) {
           return NextResponse.json(
             {
-              error: "No text detected (PDF may be blank or unsupported).",
-              hint: "If this is a scanned multi-page PDF, ensure size <2MB or upload via GCS.",
+              error: "No text detected (PDF may be blank or purely image-based).",
+              hint: "If this is a scanned multi‑page PDF, ensure size <2MB or upload to GCS for async processing.",
             },
             { status: 422 }
           );
         }
       }
     } else {
-      // Image route (JPEG/PNG)
+      // Image (JPEG/PNG/etc.)
       const credentials = loadVisionCredentials();
       const client = new ImageAnnotatorClient({ credentials });
-      const [result] = await client.textDetection({ image: { content: buffer } });
-      text = result.textAnnotations?.[0]?.description || "";
+      const [imgResult] = await client.textDetection({ image: { content: buffer } });
+
+      text = imgResult.textAnnotations?.[0]?.description || "";
       if (!text.trim()) {
         return NextResponse.json(
           { error: "No text detected in image." },
@@ -70,12 +70,13 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ text });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("OCR route error:", err);
     return NextResponse.json(
       {
         error: "OCR failed",
-        message: err.message || "Unknown error",
+        message,
       },
       { status: 500 }
     );
