@@ -6,6 +6,19 @@
 
 ---
 
+## 🚀 Live Demo
+
+**🔗 Deployed App:** [https://finsage-nine.vercel.app](https://finsage-nine.vercel.app)  
+**🧪 Test Login:**  
+- **Email:** `testuser@gmail.com`  
+- **Password:** `123456`  
+
+**🎥 Demo Video:** [Watch on YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+
+---
+
+
+
 ## Table of Contents
 
 1. [Key Features](#key-features)
