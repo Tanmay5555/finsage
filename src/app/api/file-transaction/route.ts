@@ -1,4 +1,3 @@
-// File: app/api/file-transaction/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
 import { tmpdir } from "os";
@@ -11,7 +10,16 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const SUPPORTED_EXTENSIONS = [".pdf", ".csv", ".xlsx", ".xls"];
 export const dynamic = "force-dynamic";
 
-// ---------- Gemini Classification Prompt ----------
+// ---------- Interface ----------
+interface ExtractedTransaction {
+  date: string;
+  description: string;
+  amount: number;
+  type: "Credit" | "Debit";
+  classifiedAs: "Income" | "Expense";
+}
+
+// ---------- Gemini Prompt ----------
 const CLASSIFICATION_PROMPT = (text: string) => `
 You are a personal finance assistant.
 
@@ -29,7 +37,7 @@ TEXT:
 """${text}"""
 `.trim();
 
-// ---------- File Parsing Logic ----------
+// ---------- File Parsing ----------
 async function extractTextFromFile(file: File, buffer: Buffer): Promise<string> {
   const fileName = file.name.toLowerCase();
 
@@ -48,7 +56,7 @@ async function extractTextFromFile(file: File, buffer: Buffer): Promise<string> 
   throw new Error("Unsupported file type");
 }
 
-// ---------- Main Route ----------
+// ---------- POST Route ----------
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -69,28 +77,36 @@ export async function POST(req: NextRequest) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // Save to temp dir (optional)
+    // Optional temp save
     const tempPath = path.join(tmpdir(), `${uuidv4()}-${file.name}`);
     await writeFile(tempPath, buffer);
 
     const extractedText = await extractTextFromFile(file, buffer);
 
-    // ✅ Call Gemini with extracted text
     const rawResponse = await fetchGeminiText(CLASSIFICATION_PROMPT(extractedText));
-
-    // ✅ Strip any ```json block formatting
     const cleanJson = rawResponse.replace(/```json|```/g, "").trim();
 
-    let transactions: any[] = [];
+    let transactions: ExtractedTransaction[] = [];
+
     try {
-      transactions = JSON.parse(cleanJson);
+      const parsed = JSON.parse(cleanJson);
+      if (Array.isArray(parsed)) {
+        transactions = parsed.filter(
+          (t): t is ExtractedTransaction =>
+            typeof t.date === "string" &&
+            typeof t.description === "string" &&
+            typeof t.amount === "number" &&
+            (t.type === "Credit" || t.type === "Debit") &&
+            (t.classifiedAs === "Income" || t.classifiedAs === "Expense")
+        );
+      }
     } catch {
       transactions = [];
     }
 
     return NextResponse.json({ transactions });
   } catch (err: unknown) {
-    console.error("❌ file-transaction error:", err);
+    console.error("file-transaction error:", err);
     return NextResponse.json(
       {
         error: "Transaction extraction failed",

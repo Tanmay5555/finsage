@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/firebase";
 import {
   collection,
