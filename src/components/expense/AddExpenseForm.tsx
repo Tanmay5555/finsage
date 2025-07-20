@@ -135,7 +135,7 @@ export default function AddExpenseForm({ onAdded }: { onAdded?: () => void }) {
             <Label className="text-sm text-white">Upload Receipt (Optional)</Label>
             <Input
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               onChange={handleReceiptUpload}
               disabled={loading}
               className="text-white file:text-white file:bg-[#1f2547] file:border-none"

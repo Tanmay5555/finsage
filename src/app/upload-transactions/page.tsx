@@ -9,7 +9,6 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-// ✅ Type for a transaction extracted from Gemini
 interface ExtractedTransaction {
   date: string;
   description: string;
