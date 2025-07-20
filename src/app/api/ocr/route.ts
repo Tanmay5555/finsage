@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { ImageAnnotatorClient } from "@google-cloud/vision";
 import pdfParse from "pdf-parse";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+
 // export const dynamic = "force-dynamic"; // Uncomment if you need non-static behavior
 
 function loadVisionCredentials() {
