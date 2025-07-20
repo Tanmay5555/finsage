@@ -1,14 +1,18 @@
-// ✅ Server-only API route — NO "use client"
+// File: app/api/file-transaction/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import * as xlsx from "xlsx";
+import { fetchGeminiText } from "@/lib/gemini";
 
-// 🔍 Gemini Classification Prompt
-const classifyWithGemini = async (text: string) => {
-  const prompt = `
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const SUPPORTED_EXTENSIONS = [".pdf", ".csv", ".xlsx", ".xls"];
+export const dynamic = "force-dynamic";
+
+// ---------- Gemini Classification Prompt ----------
+const CLASSIFICATION_PROMPT = (text: string) => `
 You are a personal finance assistant.
 
 Classify each line as a transaction with these fields:
@@ -23,78 +27,76 @@ Output a JSON array. Use today's date if no date is present.
 
 TEXT:
 """${text}"""
-`;
+`.trim();
 
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      }),
-    }
-  );
+// ---------- File Parsing Logic ----------
+async function extractTextFromFile(file: File, buffer: Buffer): Promise<string> {
+  const fileName = file.name.toLowerCase();
 
-  const result = await geminiRes.json();
-  let rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-  if (rawText.startsWith("```json")) {
-    rawText = rawText.replace(/```json|```/g, "").trim();
+  if (fileName.endsWith(".pdf")) {
+    const pdfParse = (await import("pdf-parse")).default;
+    const parsed = await pdfParse(buffer);
+    return parsed.text;
   }
-  // console.log("🤖 Gemini Raw Response:", rawText);
-  try {
-    return JSON.parse(rawText);
-  } catch {
-    return [];
+
+  if (fileName.endsWith(".csv") || fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+    const workbook = xlsx.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    return xlsx.utils.sheet_to_csv(sheet);
   }
-};
 
-export const dynamic = "force-dynamic";
+  throw new Error("Unsupported file type");
+}
 
+// ---------- Main Route ----------
 export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const file = formData.get("receipt") as File;
-  if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-
-  // ✅ Optional: File size check
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: "File too large (max 5MB)" }, { status: 400 });
-  }
-
   try {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const tempPath = path.join(tmpdir(), `${uuidv4()}-${file.name}`);
-    await writeFile(tempPath, buffer); // ✅ Write file to temp directory
+    const formData = await req.formData();
+    const file = formData.get("receipt") as File | null;
 
-    let extractedText = "";
+    if (!file) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    }
 
-    // ✅ Lazy load pdf-parse only if needed to avoid fs build error
-    if (file.name.endsWith(".pdf")) {
-      const pdfParse = (await import("pdf-parse")).default;
-      const data = await pdfParse(buffer);
-      extractedText = data.text;
-    } else if (
-      file.name.endsWith(".csv") ||
-      file.name.endsWith(".xlsx") ||
-      file.name.endsWith(".xls")
-    ) {
-      const workbook = xlsx.read(buffer, { type: "buffer" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const csv = xlsx.utils.sheet_to_csv(sheet);
-      extractedText = csv;
-    } else {
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "File too large (max 5MB)" }, { status: 400 });
+    }
+
+    const fileExt = path.extname(file.name).toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(fileExt)) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
 
-    const transactions = await classifyWithGemini(extractedText);
-    // console.log("📃 Extracted Text:", extractedText);
-    // console.log("✅ Parsed Transactions:", transactions);
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Save to temp dir (optional)
+    const tempPath = path.join(tmpdir(), `${uuidv4()}-${file.name}`);
+    await writeFile(tempPath, buffer);
+
+    const extractedText = await extractTextFromFile(file, buffer);
+
+    // ✅ Call Gemini with extracted text
+    const rawResponse = await fetchGeminiText(CLASSIFICATION_PROMPT(extractedText));
+
+    // ✅ Strip any ```json block formatting
+    const cleanJson = rawResponse.replace(/```json|```/g, "").trim();
+
+    let transactions: any[] = [];
+    try {
+      transactions = JSON.parse(cleanJson);
+    } catch {
+      transactions = [];
+    }
 
     return NextResponse.json({ transactions });
-
-
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("❌ file-transaction error:", err);
-    return NextResponse.json({ error: "Transaction extraction failed" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Transaction extraction failed",
+        message: err instanceof Error ? err.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }

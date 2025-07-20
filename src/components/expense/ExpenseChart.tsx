@@ -1,3 +1,5 @@
+// ExpenseChart.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,76 +14,76 @@ import {
   CartesianGrid,
 } from "recharts";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, Timestamp } from "firebase/firestore"; // Import Timestamp for type safety
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import dayjs from "dayjs";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type MonthlyExpense = {
-  name: string;
+interface MonthlyExpense {
+  name: string; // Month abbreviation, e.g., "Jan"
   expense: number;
-};
-
-// Define an interface for the expense data retrieved from Firestore
-interface ExpenseData {
-  date: Timestamp | string | Date; // Can be Timestamp, string, or Date
-  amount: number;
-  // Add other properties if they exist in your expense documents, e.g., category: string;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+interface ExpenseData {
+  date: Timestamp | string | Date;
+  amount: number;
+}
+
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
+  if (!raw) return null;
+  if (raw instanceof Timestamp) return raw.toDate();
+  if (typeof raw === "string") return new Date(raw);
+  if (raw instanceof Date) return raw;
+  return null;
+};
+
+const buildMonthlyExpenseData = (expenses: ExpenseData[]): MonthlyExpense[] => {
+  const totals: Record<string, number> = {};
+
+  expenses.forEach((expense) => {
+    const date = parseDate(expense.date);
+    if (!date) return;
+
+    const month = dayjs(date).format("MMM");
+    totals[month] = (totals[month] || 0) + Number(expense.amount || 0);
+  });
+
+  return MONTHS.map((month) => ({
+    name: month,
+    expense: totals[month] || 0,
+  }));
+};
 
 export default function ExpenseChart({ refreshKey = 0 }: { refreshKey?: number }) {
   const { user } = useAuth();
   const [chartData, setChartData] = useState<MonthlyExpense[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Define a more specific type for raw, including Timestamp from Firestore
-  const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
-    if (!raw) return null;
-    if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
-    if (typeof raw === "string") return new Date(raw);   // ISO string
-    if (raw instanceof Date) return raw;
-    return null;
-  };
-
   useEffect(() => {
-    const fetchExpenses = async () => {
+    const fetchMonthlyExpenses = async () => {
       if (!user) return;
       setLoading(true);
 
       try {
         const q = query(collection(db, "expenses"), where("userId", "==", user.uid));
         const snapshot = await getDocs(q);
-        // Type rawExpenses as an array of ExpenseData
         const rawExpenses: ExpenseData[] = snapshot.docs.map((doc) => doc.data() as ExpenseData);
 
-        const monthly: Record<string, number> = {};
-
-        // Type exp as ExpenseData
-        rawExpenses.forEach((exp: ExpenseData) => {
-          const dt = parseDate(exp.date);
-          if (!dt) return;
-
-          const month = dayjs(dt).format("MMM");
-          // Ensure exp.amount is treated as a number
-          monthly[month] = (monthly[month] || 0) + Number(exp.amount || 0);
-        });
-
-        const data: MonthlyExpense[] = MONTHS.map((month) => ({
-          name: month,
-          expense: monthly[month] || 0,
-        }));
-
-        setChartData(data);
+        const monthlyData = buildMonthlyExpenseData(rawExpenses);
+        setChartData(monthlyData);
       } catch (err) {
-        console.error("Failed to fetch expenses:", err);
+        console.error("Error fetching expenses:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchExpenses();
+    fetchMonthlyExpenses();
   }, [user, refreshKey]);
 
   return (

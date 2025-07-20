@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -9,8 +9,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { useEffect, useState } from "react";
-import { collection, getDocs, query, Timestamp, where } from "firebase/firestore"; // Import Timestamp for type safety
+import { Card, CardContent } from "@/components/ui/card";
+import { collection, getDocs, query, Timestamp, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 
@@ -29,43 +29,51 @@ const COLORS = [
   "#818cf8", "#fb923c", "#c084fc", "#2dd4bf", "#e879f9",
 ];
 
-// Define a more specific type for raw, including Timestamp from Firestore
-const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
-  
+const parseDate = (raw: Timestamp | string | Date | null | undefined): Date | null => {
   if (!raw) return null;
-  if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
+  if (raw instanceof Timestamp) return raw.toDate();
   if (typeof raw === "string") return new Date(raw);
   if (raw instanceof Date) return raw;
   return null;
 };
 
 export default function SpendingCategoryChart({ month, year }: SpendingCategoryChartProps) {
-  const {user} = useAuth();
+  const { user } = useAuth();
   const [data, setData] = useState<CategoryDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedMonthName = useMemo(() => {
+    return new Date(year, month).toLocaleString("default", { month: "long" });
+  }, [month, year]);
+
   useEffect(() => {
-    if(!user) return;
-    const fetchData = async () => {
+    if (!user) return;
+
+    const fetchCategoryData = async () => {
       setLoading(true);
       setError(null);
+
       const categoryMap: Record<string, number> = {};
 
       try {
-        const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+        const expenseQuery = query(
+          collection(db, "expenses"),
+          where("userId", "==", user.uid)
+        );
         const snapshot = await getDocs(expenseQuery);
+
         snapshot.forEach((doc) => {
-          const d = doc.data();
-          const dt = parseDate(d.date);
+          const { date, amount, category } = doc.data();
+          const parsedDate = parseDate(date);
           if (
-            dt &&
-            dt.getFullYear() === year &&
-            dt.getMonth() === month &&
-            typeof d.amount === "number"
+            parsedDate &&
+            parsedDate.getFullYear() === year &&
+            parsedDate.getMonth() === month &&
+            typeof amount === "number"
           ) {
-            const category = d.category || "Uncategorized";
-            categoryMap[category] = (categoryMap[category] || 0) + d.amount;
+            const cat = category || "Uncategorized";
+            categoryMap[cat] = (categoryMap[cat] || 0) + amount;
           }
         });
 
@@ -75,24 +83,20 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
 
         setData(formattedData);
       } catch (err) {
-        console.error("❌ Error fetching category data:", err);
+        console.error("Failed to fetch category data:", err);
         setError("Failed to load spending category data.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchCategoryData();
   }, [month, year, user]);
-
-  const selectedMonthName = new Date(year, month).toLocaleString("default", {
-    month: "long",
-  });
 
   return (
     <Card className="bg-[#161b33] text-white">
       <CardContent className="p-4">
-        <h2 className="text-lg font-semibold mb-2">🧾 Spending by Category</h2>
+        <h2 className="text-lg font-semibold mb-2">Spending by Category</h2>
         <p className="text-sm mb-4 text-muted-foreground">
           For {selectedMonthName}, {year}
         </p>
@@ -109,7 +113,7 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
           </div>
         )}
 
-        {!loading && !error && data.length > 0 ? (
+        {!loading && !error && data.length > 0 && (
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -124,7 +128,9 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
                   isAnimationActive
                   animationDuration={800}
                   label={({ name, percent }: { name?: string; percent?: number }) =>
-                    percent != null && percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ""
+                    percent && percent > 0.05
+                      ? `${name} ${(percent * 100).toFixed(0)}%`
+                      : ""
                   }
                 >
                   {data.map((entry, index) => (
@@ -137,7 +143,7 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#1e213a",
-                    borderRadius: "8px",
+                    borderRadius: 8,
                     border: "none",
                   }}
                   labelStyle={{ color: "#c3c3c3" }}
@@ -156,12 +162,12 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
               </PieChart>
             </ResponsiveContainer>
           </div>
-        ) : (
-          !loading && !error && (
-            <div className="h-56 flex items-center justify-center text-gray-400">
-              No spending data for {selectedMonthName}, {year}.
-            </div>
-          )
+        )}
+
+        {!loading && !error && data.length === 0 && (
+          <div className="h-56 flex items-center justify-center text-gray-400">
+            No spending data for {selectedMonthName}, {year}.
+          </div>
         )}
       </CardContent>
     </Card>

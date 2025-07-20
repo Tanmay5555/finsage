@@ -1,42 +1,28 @@
-// app/api/insight/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { fetchGeminiText } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
+    const body = await req.json();
+    const inputText = body?.text?.trim();
 
-    if (!text) {
-      return NextResponse.json({ error: "No text provided" }, { status: 400 });
+    if (!inputText) {
+      return NextResponse.json({ error: "Missing 'text' field in request body." }, { status: 400 });
     }
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text }] }],
-        }),
-      }
-    );
-
-    if (!geminiRes.ok) {
-      const errorText = await geminiRes.text(); // capture raw HTML if it’s an error
-      return NextResponse.json({ error: "Gemini API failed", details: errorText }, { status: geminiRes.status });
-    }
-
-    const result = await geminiRes.json();
-
-    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!content) {
-      return NextResponse.json({ error: "No valid response from Gemini" }, { status: 500 });
-    }
+    const content = await fetchGeminiText(inputText);
 
     return NextResponse.json({ content });
-  } catch (err) {
-    console.error("❌ /api/gemini-insight error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  } catch (err: unknown) {
+    console.error("Insight API error:", err);
+    return NextResponse.json(
+      {
+        error: "Insight generation failed",
+        message: err instanceof Error ? err.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }

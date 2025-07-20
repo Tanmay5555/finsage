@@ -1,3 +1,5 @@
+// components/charts/IncomeExpenseChart.tsx — Production-ready & well-commented
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -15,9 +17,8 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 
-interface Props {
-  year: number;
-  month: number;
+interface IncomeExpenseChartProps {
+  year: number; // Financial year to filter
 }
 
 interface DataPoint {
@@ -26,61 +27,80 @@ interface DataPoint {
   expenses: number;
 }
 
-const shortMonthNames = [
+const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
-export default function IncomeExpenseChart({ year }: Props) {
-  const { user } = useAuth(); // ✅ Get current user
+export default function IncomeExpenseChart({ year }: IncomeExpenseChartProps) {
+  const { user } = useAuth();
+
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return; // Wait for user auth to load
+    if (!user) return;
 
-    const fetchData = async () => {
+    const fetchIncomeExpenseData = async () => {
       setLoading(true);
       setError(null);
 
-      const monthlyData: Record<number, { income: number; expenses: number }> = {};
+      // Initialize data map for 12 months
+      const monthly: Record<number, { income: number; expenses: number }> = {};
       for (let i = 0; i < 12; i++) {
-        monthlyData[i] = { income: 0, expenses: 0 };
+        monthly[i] = { income: 0, expenses: 0 };
       }
 
       try {
-        const incomeQuery = query(collection(db, "incomes"), where("userId", "==", user.uid));
+        // 🔁 Fetch income records
+        const incomeQuery = query(
+          collection(db, "incomes"),
+          where("userId", "==", user.uid)
+        );
         const incomeSnap = await getDocs(incomeQuery);
 
         incomeSnap.forEach((doc) => {
-          const d = doc.data();
-          const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
+          const data = doc.data();
+          const dt = data.date?.seconds
+            ? new Date(data.date.seconds * 1000)
+            : new Date(data.date);
+
           if (dt.getFullYear() === year) {
-            const monthIndex = dt.getMonth();
-            monthlyData[monthIndex].income += Number(d.amount || 0);
+            const monthIdx = dt.getMonth();
+            monthly[monthIdx].income += Number(data.amount || 0);
           }
         });
 
-        const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+        // 🔁 Fetch expense records
+        const expenseQuery = query(
+          collection(db, "expenses"),
+          where("userId", "==", user.uid)
+        );
         const expenseSnap = await getDocs(expenseQuery);
 
         expenseSnap.forEach((doc) => {
-          const d = doc.data();
-          const dt = d.date?.seconds ? new Date(d.date.seconds * 1000) : new Date(d.date);
+          const data = doc.data();
+          const dt = data.date?.seconds
+            ? new Date(data.date.seconds * 1000)
+            : new Date(data.date);
+
           if (dt.getFullYear() === year) {
-            const monthIndex = dt.getMonth();
-            monthlyData[monthIndex].expenses += Number(d.amount || 0);
+            const monthIdx = dt.getMonth();
+            monthly[monthIdx].expenses += Number(data.amount || 0);
           }
         });
 
-        const formattedData = Object.entries(monthlyData).map(([index, values]) => ({
-          month: shortMonthNames[Number(index)],
-          income: values.income,
-          expenses: values.expenses,
-        }));
+        // 🧾 Convert to chart-friendly format
+        const chartData: DataPoint[] = Object.entries(monthly).map(
+          ([idx, val]) => ({
+            month: MONTH_NAMES[parseInt(idx)],
+            income: val.income,
+            expenses: val.expenses,
+          })
+        );
 
-        setData(formattedData);
+        setData(chartData);
       } catch (err) {
         console.error("Error fetching chart data:", err);
         setError("Failed to load chart data.");
@@ -89,15 +109,24 @@ export default function IncomeExpenseChart({ year }: Props) {
       }
     };
 
-    fetchData();
+    fetchIncomeExpenseData();
   }, [year, user]);
 
   return (
     <Card className="bg-[#161b33] text-white">
       <CardContent className="p-4">
-        <h2 className="text-lg font-semibold mb-2">Income & Expenses by Month (F.Y. {year})</h2>
-        {loading && <div className="text-center text-gray-400">Loading...</div>}
-        {error && <div className="text-center text-red-400">{error}</div>}
+        <h2 className="text-lg font-semibold mb-2">
+          Income & Expenses by Month (F.Y. {year})
+        </h2>
+
+        {loading && (
+          <div className="text-center text-gray-400">Loading...</div>
+        )}
+
+        {error && (
+          <div className="text-center text-red-400">{error}</div>
+        )}
+
         {!loading && !error && data.length > 0 && (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -108,6 +137,7 @@ export default function IncomeExpenseChart({ year }: Props) {
                   contentStyle={{ backgroundColor: "#1e213a", border: "none" }}
                   labelStyle={{ color: "#c3c3c3" }}
                   itemStyle={{ color: "#fff" }}
+                  formatter={(value: number, key: string) => [`₹${value}`, key]}
                 />
                 <Legend wrapperStyle={{ color: "#fff" }} />
                 <Bar dataKey="income" fill="#34d399" radius={[4, 4, 0, 0]} />
@@ -116,8 +146,11 @@ export default function IncomeExpenseChart({ year }: Props) {
             </ResponsiveContainer>
           </div>
         )}
+
         {!loading && !error && data.length === 0 && (
-          <div className="text-center text-gray-400">No data available for {year}.</div>
+          <div className="text-center text-gray-400">
+            No data available for {year}.
+          </div>
         )}
       </CardContent>
     </Card>

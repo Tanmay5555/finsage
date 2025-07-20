@@ -25,12 +25,12 @@ const SOURCE_OPTIONS = [
   "Other",
 ] as const;
 
-// Utility: Clean amount string
+// Clean amount string
 const normalizeAmount = (raw: string): string => {
   return raw.replace(/(?<=\d),(?=\d)/g, "").trim();
 };
 
-// Utility: Detect source from raw OCR string
+// Detect source from raw OCR string
 const detectIncomeSource = (text: string): string => {
   const lower = text.toLowerCase();
   if (/(salary|payslip|ctc|net pay)/.test(lower)) return "Salary";
@@ -41,7 +41,7 @@ const detectIncomeSource = (text: string): string => {
   return "Other";
 };
 
-// Utility: Safe JSON parse from API response
+// Safe JSON parse from API response
 const safeParseJson = async <T = unknown>(res: Response): Promise<T | null> => {
   const ct = res.headers.get("content-type") || "";
   if (!ct.includes("application/json")) return null;

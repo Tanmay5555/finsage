@@ -1,3 +1,5 @@
+// components/tables/LatestTransactionsTable.tsx — Production-grade & exportable transaction list
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -34,10 +36,10 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
 
   useEffect(() => {
     if (!user) return;
-    // Define a more specific type for raw, including Timestamp from Firestore
+
     const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
       if (!raw) return null;
-      if (raw instanceof Timestamp) return raw.toDate(); // Convert Firestore Timestamp to Date
+      if (raw instanceof Timestamp) return raw.toDate();
       if (typeof raw === "string") return new Date(raw);
       if (raw instanceof Date) return raw;
       return null;
@@ -46,10 +48,10 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
     const fetchTransactions = async () => {
       setLoading(true);
       setError(null);
-
       const transactions: Transaction[] = [];
 
       try {
+        // 🔹 Fetch incomes
         const incomeQuery = query(collection(db, "incomes"), where("userId", "==", user.uid));
         const incomeSnap = await getDocs(incomeQuery);
         incomeSnap.forEach((doc) => {
@@ -58,13 +60,15 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
           if (dt && dt.getFullYear() === year && dt.getMonth() === month && typeof d.amount === "number") {
             transactions.push({
               id: doc.id,
-              title: d.title || "Income",
+              title: d.title || d.source || "Income",
               amount: d.amount,
               type: "Income",
               date: dt,
             });
           }
         });
+
+        // 🔻 Fetch expenses
         const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
         const expenseSnap = await getDocs(expenseQuery);
         expenseSnap.forEach((doc) => {
@@ -73,8 +77,8 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
           if (dt && dt.getFullYear() === year && dt.getMonth() === month && typeof d.amount === "number") {
             transactions.push({
               id: doc.id,
-              title: d.title || "Expense",
-              amount: -d.amount,
+              title: d.title || d.category || "Expense",
+              amount: -d.amount, // Show expense as negative
               type: d.category || "Expense",
               date: dt,
             });
@@ -84,7 +88,7 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
         transactions.sort((a, b) => b.date.getTime() - a.date.getTime());
 
         setAllMonthlyTransactions(transactions);
-        setTransactionsToDisplay(transactions.slice(0, 50));
+        setTransactionsToDisplay(transactions.slice(0, 50)); // Show recent 50
       } catch (err) {
         console.error("Error fetching transactions:", err);
         setError("Failed to load transactions. Please try again.");
@@ -119,7 +123,6 @@ export default function LatestTransactionsTable({ month, year }: LatestTransacti
 
     const blob = new Blob([csvHeader + csvRows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.setAttribute("download", `Statement_${selectedMonthName}_${year}.csv`);

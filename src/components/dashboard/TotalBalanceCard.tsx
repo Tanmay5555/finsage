@@ -1,27 +1,40 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { db } from "@/lib/firebase";
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
+import { ArrowDown, ArrowUp } from "lucide-react";
 
-interface Props {
+interface TotalBalanceCardProps {
   month: number;
   year: number;
 }
 
-export default function TotalBalanceCard({ month, year }: Props) {
+interface BalanceDataPoint {
+  month: string;
+  balance: number;
+}
+
+export default function TotalBalanceCard({ month, year }: TotalBalanceCardProps) {
   const { user } = useAuth();
+
+  const [data, setData] = useState<BalanceDataPoint[]>([]);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [currentIncome, setCurrentIncome] = useState(0);
   const [currentExpense, setCurrentExpense] = useState(0);
-  const [data, setData] = useState<{ month: string; balance: number }[]>([]);
   const [change, setChange] = useState<number | null>(null);
 
-  const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
+  const parseDate = (raw: Timestamp | string | Date | null | undefined): Date | null => {
     if (!raw) return null;
     if (raw instanceof Timestamp) return raw.toDate();
     if (typeof raw === "string") return new Date(raw);
@@ -30,81 +43,104 @@ export default function TotalBalanceCard({ month, year }: Props) {
   };
 
   useEffect(() => {
+    if (!user) return;
+
     const fetchData = async () => {
-      if (!user) return;
+      try {
+        const incomeQuery = query(
+          collection(db, "incomes"),
+          where("userId", "==", user.uid)
+        );
+        const expenseQuery = query(
+          collection(db, "expenses"),
+          where("userId", "==", user.uid)
+        );
 
-      const incomeQuery = query(collection(db, "incomes"), where("userId", "==", user.uid));
-      const expenseQuery = query(collection(db, "expenses"), where("userId", "==", user.uid));
+        const [incomeSnap, expenseSnap] = await Promise.all([
+          getDocs(incomeQuery),
+          getDocs(expenseQuery),
+        ]);
 
-      const incomeSnap = await getDocs(incomeQuery);
-      const expenseSnap = await getDocs(expenseQuery);
+        const balances: BalanceDataPoint[] = [];
 
-      const balances: { month: string; balance: number }[] = [];
+        let thisMonthIncome = 0;
+        let thisMonthExpense = 0;
 
-      let income = 0;
-      let expense = 0;
+        for (let i = 5; i >= 0; i--) {
+          const targetDate = new Date(year, month - i, 1);
+          const targetMonth = targetDate.getMonth();
+          const targetYear = targetDate.getFullYear();
 
-      for (let i = 5; i >= 0; i--) {
-        const date = new Date(year, month - i, 1);
-        const m = date.getMonth();
-        const y = date.getFullYear();
+          let monthIncome = 0;
+          let monthExpense = 0;
 
-        let monthIncome = 0;
-        let monthExpense = 0;
+          incomeSnap.forEach((doc) => {
+            const entry = doc.data();
+            const dt = parseDate(entry.date);
+            if (
+              dt &&
+              dt.getMonth() === targetMonth &&
+              dt.getFullYear() === targetYear &&
+              typeof entry.amount === "number"
+            ) {
+              monthIncome += entry.amount;
+            }
+          });
 
-        incomeSnap.forEach((doc) => {
-          const d = doc.data();
-          const dt = parseDate(d.date);
-          if (dt && dt.getMonth() === m && dt.getFullYear() === y && typeof d.amount === "number") {
-            monthIncome += d.amount;
+          expenseSnap.forEach((doc) => {
+            const entry = doc.data();
+            const dt = parseDate(entry.date);
+            if (
+              dt &&
+              dt.getMonth() === targetMonth &&
+              dt.getFullYear() === targetYear &&
+              typeof entry.amount === "number"
+            ) {
+              monthExpense += entry.amount;
+            }
+          });
+
+          balances.push({
+            month: targetDate.toLocaleString("default", { month: "short" }),
+            balance: monthIncome - monthExpense,
+          });
+
+          if (targetMonth === month && targetYear === year) {
+            thisMonthIncome = monthIncome;
+            thisMonthExpense = monthExpense;
           }
-        });
-
-        expenseSnap.forEach((doc) => {
-          const d = doc.data();
-          const dt = parseDate(d.date);
-          if (dt && dt.getMonth() === m && dt.getFullYear() === y && typeof d.amount === "number") {
-            monthExpense += d.amount;
-          }
-        });
-
-        const balance = monthIncome - monthExpense;
-
-        balances.push({
-          month: date.toLocaleString("default", { month: "short" }),
-          balance,
-        });
-
-        if (m === month && y === year) {
-          income = monthIncome;
-          expense = monthExpense;
         }
-      }
 
-      const current = income - expense;
-      const previous = balances[balances.length - 2]?.balance || 0;
+        const latestBalance = thisMonthIncome - thisMonthExpense;
+        const prevBalance = balances[balances.length - 2]?.balance || 0;
 
-      setData(balances);
-      setCurrentIncome(income);
-      setCurrentExpense(expense);
-      setCurrentBalance(current);
+        setData(balances);
+        setCurrentIncome(thisMonthIncome);
+        setCurrentExpense(thisMonthExpense);
+        setCurrentBalance(latestBalance);
 
-      if (previous !== 0) {
-        const percent = ((current - previous) / Math.abs(previous)) * 100;
-        setChange(parseFloat(percent.toFixed(1)));
-      } else {
-        setChange(current !== 0 ? 100 : 0);
+        if (prevBalance !== 0) {
+          const percentChange = ((latestBalance - prevBalance) / Math.abs(prevBalance)) * 100;
+          setChange(parseFloat(percentChange.toFixed(1)));
+        } else {
+          setChange(latestBalance !== 0 ? 100 : 0);
+        }
+      } catch (error) {
+        console.error("Error fetching balance data:", error);
       }
     };
 
     fetchData();
-  }, [month, year, user]);
+  }, [user, month, year]);
 
   return (
     <Card className="bg-[#161b33] text-white">
       <CardContent className="p-4 space-y-4">
-        <h2 className="text-lg font-semibold">💰 Total Balance</h2>
-        <div className="text-4xl font-bold text-white">₹{currentBalance.toFixed(2)}</div>
+        <h2 className="text-lg font-semibold">Total Balance</h2>
+
+        <div className="text-4xl font-bold">
+          ₹{currentBalance.toFixed(2)}
+        </div>
 
         {change !== null && (
           <p

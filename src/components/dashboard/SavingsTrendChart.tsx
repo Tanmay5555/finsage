@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -11,11 +13,15 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
-import { useAuth } from "@/context/AuthContext"; 
+import { useAuth } from "@/context/AuthContext";
 
 interface SavingsTrendChartProps {
   year: number;
@@ -28,17 +34,20 @@ interface SavingsDataPoint {
   savings: number;
 }
 
-const monthNames = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
 export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
-  const { user } = useAuth(); // ✅ current user
+  const { user } = useAuth();
   const [data, setData] = useState<SavingsDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const parseDate = (raw: Timestamp | string | Date | undefined | null): Date | null => {
+  const monthNames = useMemo(
+    () => [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ],
+    []
+  );
+
+  const parseDate = (raw: Timestamp | string | Date | null | undefined): Date | null => {
     if (!raw) return null;
     if (raw instanceof Timestamp) return raw.toDate();
     if (typeof raw === "string") return new Date(raw);
@@ -47,13 +56,13 @@ export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
   };
 
   useEffect(() => {
-    if (!user) return; // ✅ wait for user auth
+    if (!user) return;
 
-    const fetchData = async () => {
+    const fetchSavingsData = async () => {
       setLoading(true);
 
-      const monthly: SavingsDataPoint[] = monthNames.map((m) => ({
-        month: m,
+      const monthly: SavingsDataPoint[] = monthNames.map((month) => ({
+        month,
         income: 0,
         expense: 0,
         savings: 0,
@@ -66,42 +75,42 @@ export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
         ]);
 
         incomeSnap.forEach((doc) => {
-          const entry = doc.data();
-          const dt = parseDate(entry.date);
-          if (dt && dt.getFullYear() === year && typeof entry.amount === "number") {
-            monthly[dt.getMonth()].income += entry.amount;
+          const { amount, date } = doc.data();
+          const parsed = parseDate(date);
+          if (parsed && parsed.getFullYear() === year && typeof amount === "number") {
+            monthly[parsed.getMonth()].income += amount;
           }
         });
 
         expenseSnap.forEach((doc) => {
-          const entry = doc.data();
-          const dt = parseDate(entry.date);
-          if (dt && dt.getFullYear() === year && typeof entry.amount === "number") {
-            monthly[dt.getMonth()].expense += entry.amount;
+          const { amount, date } = doc.data();
+          const parsed = parseDate(date);
+          if (parsed && parsed.getFullYear() === year && typeof amount === "number") {
+            monthly[parsed.getMonth()].expense += amount;
           }
         });
 
-        for (const entry of monthly) {
+        monthly.forEach((entry) => {
           entry.savings = entry.income - entry.expense;
-        }
+        });
 
         setData(monthly);
-      } catch (err) {
-        console.error("❌ Error loading savings data:", err);
+      } catch (error) {
+        console.error("Failed to fetch savings data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [year, user]);
+    fetchSavingsData();
+  }, [user, year, monthNames]);
 
   const handleDownloadCSV = () => {
     const header = "Month,Income,Expenses,Savings\n";
     const rows = data
       .map(
-        (entry) =>
-          `${entry.month},${entry.income.toFixed(2)},${entry.expense.toFixed(2)},${entry.savings.toFixed(2)}`
+        ({ month, income, expense, savings }) =>
+          `${month},${income.toFixed(2)},${expense.toFixed(2)},${savings.toFixed(2)}`
       )
       .join("\n");
 
@@ -121,11 +130,11 @@ export default function SavingsTrendChart({ year }: SavingsTrendChartProps) {
     <Card className="bg-[#161b33] text-white">
       <CardContent className="p-4">
         <div className="flex justify-between items-center mb-2">
-          <h2 className="text-lg font-semibold">📈 Savings Trend - {year}</h2>
+          <h2 className="text-lg font-semibold">Savings Trend - {year}</h2>
           <Button
             className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md text-sm"
             onClick={handleDownloadCSV}
-            disabled={data.length === 0}
+            disabled={loading || data.length === 0}
           >
             <Download className="w-4 h-4 mr-1" /> Export CSV
           </Button>

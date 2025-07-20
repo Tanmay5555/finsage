@@ -1,3 +1,5 @@
+// IncomeChart.tsx 
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,25 +14,70 @@ import {
   CartesianGrid,
 } from "recharts";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
-import { format, parseISO, isValid } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { parseISO, isValid, format } from "date-fns";
 
-type ChartData = {
-  name: string;
+interface IncomeChartProps {
+  refreshKey?: number;
+}
+
+interface IncomeRecord {
+  amount: number;
+  date: Timestamp | string | Date | null | undefined;
+}
+
+interface MonthlyIncome {
+  name: string; // Month short name (Jan, Feb, ...)
   income: number;
-};
+}
 
-const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_ORDER = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 
-export default function IncomeChart({ refreshKey = 0 }: { refreshKey?: number }) {
+/**
+ * Normalizes a raw Firestore date field into a valid Date object.
+ */
+function parseIncomeDate(raw: IncomeRecord["date"]): Date | null {
+  if (!raw) return null;
+  if (raw instanceof Timestamp) return raw.toDate();
+  if (typeof raw === "string") return parseISO(raw);
+  if (raw instanceof Date) return raw;
+  return null;
+}
+
+/**
+ * Aggregates income amounts by month for chart display.
+ */
+function buildMonthlyIncomeData(incomes: IncomeRecord[]): MonthlyIncome[] {
+  const monthly: Record<string, number> = {};
+
+  for (const income of incomes) {
+    const date = parseIncomeDate(income.date);
+    if (!date || !isValid(date)) continue;
+
+    const month = format(date, "MMM");
+    const amount = Number(income.amount || 0);
+
+    monthly[month] = (monthly[month] || 0) + amount;
+  }
+
+  return MONTHS_ORDER.map((month) => ({
+    name: month,
+    income: monthly[month] || 0,
+  }));
+}
+
+export default function IncomeChart({ refreshKey = 0 }: IncomeChartProps) {
   const { user } = useAuth();
-  const [data, setData] = useState<ChartData[]>([]);
+  const [data, setData] = useState<MonthlyIncome[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchIncomeData = async () => {
+    const fetchIncome = async () => {
       if (!user) return;
       setLoading(true);
 
@@ -38,44 +85,21 @@ export default function IncomeChart({ refreshKey = 0 }: { refreshKey?: number })
         const q = query(collection(db, "incomes"), where("userId", "==", user.uid));
         const snapshot = await getDocs(q);
 
-        const monthlyTotals: Record<string, number> = {};
-
-        snapshot.forEach((doc) => {
-          const income = doc.data();
-          const rawDate = income.date;
-
-          let parsedDate: Date | null = null;
-
-          if (typeof rawDate === "string") {
-            parsedDate = parseISO(rawDate);
-          } else if (rawDate?.seconds) {
-            parsedDate = new Date(rawDate.seconds * 1000);
-          } else if (rawDate instanceof Date) {
-            parsedDate = rawDate;
-          }
-
-          if (!parsedDate || !isValid(parsedDate)) return;
-
-          const month = format(parsedDate, "MMM");
-          const amount = Number(income.amount || 0);
-
-          monthlyTotals[month] = (monthlyTotals[month] || 0) + amount;
-        });
-
-        const chartData: ChartData[] = monthOrder.map((m) => ({
-          name: m,
-          income: monthlyTotals[m] || 0,
+        const rawIncomes: IncomeRecord[] = snapshot.docs.map((doc) => ({
+          amount: Number(doc.data().amount || 0),
+          date: doc.data().date,
         }));
 
-        setData(chartData);
-      } catch (error) {
-        console.error("Error fetching income chart data:", error);
+        const monthlyData = buildMonthlyIncomeData(rawIncomes);
+        setData(monthlyData);
+      } catch (err) {
+        console.error("Failed to fetch income chart:", err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchIncomeData();
+    fetchIncome();
   }, [user, refreshKey]);
 
   return (

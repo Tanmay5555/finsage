@@ -1,26 +1,42 @@
-// src/context/AuthContext.tsx
+// src/context/AuthContext.tsx 
+
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
-interface AuthContextProps {
+// Define the shape of our AuthContext
+interface AuthContextValue {
   user: User | null;
   loading: boolean;
 }
 
-const AuthContext = createContext<AuthContextProps>({ user: null, loading: true });
+// Create context with default values
+const AuthContext = createContext<AuthContextValue>({
+  user: null,
+  loading: true,
+});
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+// AuthProvider component to wrap around the app
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Listen for Firebase auth state changes
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
     });
+
+    // Cleanup on unmount
     return () => unsubscribe();
   }, []);
 
@@ -31,4 +47,5 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// Custom hook for using auth context
 export const useAuth = () => useContext(AuthContext);

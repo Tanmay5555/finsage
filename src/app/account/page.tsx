@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import {
@@ -32,67 +32,58 @@ import {
 
 import DashboardLayout from "@/components/layouts/DashboardLayout";
 
+// ---------- Main Component ----------
 export default function AccountPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [displayName, setDisplayName] = useState<string>("");
-  const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [displayName, setDisplayName] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  // ---------- Auth State Sync ----------
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-        setDisplayName(user.displayName || "");
-      } else {
-        router.push("/login");
-      }
+      if (!user) return router.push("/login");
+      setCurrentUser(user);
+      setDisplayName(user.displayName || "");
     });
     return () => unsubscribe();
   }, [router]);
 
-  const handleUpdateDisplayName = async () => {
-    if (!currentUser) {
-      toast.error("No user logged in.");
-      return;
-    }
+  // ---------- Update Name ----------
+  const handleUpdateName = async () => {
+    if (!currentUser) return toast.error("No user logged in.");
     const trimmed = displayName.trim();
-    if (trimmed === "") {
-      toast.error("Display name cannot be empty.");
-      return;
-    }
-    if (trimmed === currentUser.displayName) {
-      setIsEditingName(false);
-      return;
-    }
+    if (!trimmed) return toast.error("Display name cannot be empty.");
+    if (trimmed === currentUser.displayName) return setIsEditing(false);
 
     setLoading(true);
     try {
       await updateProfile(currentUser, { displayName: trimmed });
-      toast.success("Display name updated successfully!");
-      setIsEditingName(false);
-    } catch (err: unknown) {
-      const error = err as { message?: string };
-      toast.error(`Failed to update display name: ${error.message || "Unknown error"}`);
+      toast.success("Display name updated!");
+      setIsEditing(false);
+    } catch (err) {
+      toast.error(`Update failed: ${(err as Error).message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------- Logout ----------
   const handleLogout = async () => {
     setLoading(true);
     try {
       await signOut(auth);
-      toast.success("Logged out successfully!");
+      toast.success("Logged out!");
       router.push("/login");
-    } catch (err: unknown) {
-      const error = err as { message?: string };
-      toast.error(`Failed to log out: ${error.message || "Unknown error"}`);
+    } catch (err) {
+      toast.error(`Logout failed: ${(err as Error).message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
   };
 
+  // ---------- Loading Fallback ----------
   if (!currentUser) {
     return (
       <DashboardLayout>
@@ -103,18 +94,19 @@ export default function AccountPage() {
     );
   }
 
+  // ---------- Render ----------
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-10 text-foreground p-4 md:p-6">
-        <div>
+        <header>
           <h1 className="text-3xl font-bold">Account Settings</h1>
           <p className="text-md text-muted-foreground">
             Manage your profile and learn about Finsage&apos;s AI capabilities.
           </p>
-        </div>
+        </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Profile Card */}
+          {/* Profile Section */}
           <Card className="bg-[#161b33] text-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -122,11 +114,9 @@ export default function AccountPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Email */}
               <div className="space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="flex items-center gap-2 text-muted-foreground text-white"
-                >
+                <Label htmlFor="email" className="flex items-center gap-2 text-muted-foreground text-white">
                   <Mail size={16} /> Email Address
                 </Label>
                 <Input
@@ -138,31 +128,28 @@ export default function AccountPage() {
                 />
               </div>
 
+              {/* Display Name */}
               <div className="space-y-2">
-                <Label
-                  htmlFor="displayName"
-                  className="flex items-center gap-2 text-muted-foreground text-white"
-                >
+                <Label htmlFor="displayName" className="flex items-center gap-2 text-muted-foreground text-white">
                   <UserIcon size={16} /> Display Name
                 </Label>
                 <div className="flex items-center gap-2">
                   <Input
                     id="displayName"
-                    type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
-                    readOnly={!isEditingName}
-                    className={`bg-[#1f2547] text-white border-none ${!isEditingName ? "cursor-text" : ""}`}
+                    readOnly={!isEditing}
+                    className={`bg-[#1f2547] text-white border-none ${!isEditing ? "cursor-text" : ""}`}
                   />
-                  {isEditingName ? (
+                  {isEditing ? (
                     <>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={handleUpdateDisplayName}
+                        onClick={handleUpdateName}
                         disabled={loading}
-                        className="text-green-400 hover:text-green-500 hover:bg-transparent"
-                        title="Save Name"
+                        title="Save"
+                        className="text-green-400 hover:text-green-500"
                       >
                         <Save size={20} />
                       </Button>
@@ -170,12 +157,12 @@ export default function AccountPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          setIsEditingName(false);
+                          setIsEditing(false);
                           setDisplayName(currentUser.displayName || "");
                         }}
                         disabled={loading}
-                        className="text-red-400 hover:text-red-500 hover:bg-transparent"
-                        title="Cancel Edit"
+                        title="Cancel"
+                        className="text-red-400 hover:text-red-500"
                       >
                         <XCircle size={20} />
                       </Button>
@@ -184,10 +171,10 @@ export default function AccountPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setIsEditingName(true)}
+                      onClick={() => setIsEditing(true)}
                       disabled={loading}
-                      className="text-blue-400 hover:text-blue-500 hover:bg-transparent"
-                      title="Edit Name"
+                      title="Edit"
+                      className="text-blue-400 hover:text-blue-500"
                     >
                       <Pencil size={20} />
                     </Button>
@@ -195,11 +182,12 @@ export default function AccountPage() {
                 </div>
               </div>
 
+              {/* Logout */}
               <div className="pt-4 border-t border-white/10 flex justify-center">
                 <Button
                   onClick={handleLogout}
-                  className="w-fit px-6 py-2 bg-red-600 hover:bg-red-700 flex items-center gap-2 rounded-md"
                   disabled={loading}
+                  className="w-fit px-6 py-2 bg-red-600 hover:bg-red-700 flex items-center gap-2 rounded-md"
                 >
                   <LogOut size={18} />
                   {loading ? "Logging Out..." : "Logout"}
@@ -208,38 +196,32 @@ export default function AccountPage() {
             </CardContent>
           </Card>
 
-          {/* AI Assistant Card */}
+          {/* AI Assistant Description */}
           <Card className="bg-[#161b33] text-white flex flex-col">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Brain size={20} className="text-purple-400" /> About Finsage AI
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 flex-grow">
-              <p className="text-sm text-muted-foreground text-white">
+            <CardContent className="space-y-4 flex-grow text-sm text-white">
+              <p className="text-muted-foreground">
                 Finsage is powered by advanced AI to give you smart, personalized financial insights.
               </p>
-              <ul className="list-disc list-inside text-sm space-y-2">
-                <li className="flex gap-2 text-white">
+              <ul className="list-disc list-inside space-y-2">
+                <li className="flex gap-2">
                   <Sparkles size={16} className="text-yellow-400" />
-                  <span>
-                    <strong className="text-purple-400">Intelligent Insights:</strong> Analyze monthly trends in your finances.
-                  </span>
+                  <span><strong className="text-purple-400">Intelligent Insights:</strong> Analyze monthly trends in your finances.</span>
                 </li>
-                <li className="flex gap-2 text-white">
+                <li className="flex gap-2">
                   <Sparkles size={16} className="text-yellow-400" />
-                  <span>
-                    <strong className="text-purple-400">Personalized Tips:</strong> Optimize your budget and reach goals faster.
-                  </span>
+                  <span><strong className="text-purple-400">Personalized Tips:</strong> Optimize your budget and reach goals faster.</span>
                 </li>
-                <li className="flex gap-2 text-white">
+                <li className="flex gap-2">
                   <Sparkles size={16} className="text-yellow-400" />
-                  <span>
-                    <strong className="text-purple-400">Anomaly Detection:</strong> Spot suspicious or abnormal spending patterns.
-                  </span>
+                  <span><strong className="text-purple-400">Anomaly Detection:</strong> Spot suspicious or abnormal spending patterns.</span>
                 </li>
               </ul>
-              <p className="text-sm text-muted-foreground text-white">
+              <p className="text-muted-foreground">
                 We&apos;re continuously enhancing Finsage&apos;s capabilities to better serve you.
               </p>
             </CardContent>

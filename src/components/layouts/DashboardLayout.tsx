@@ -1,22 +1,29 @@
+// components/layouts/DashboardLayout.tsx — Production-ready layout
+
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+interface DashboardLayoutProps {
+  children: React.ReactNode;
+}
+
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  // Redirect user to login if not authenticated and loading has finished
   useEffect(() => {
-    // Redirect to login if not authenticated and loading is complete
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
 
+  // While checking auth state
   if (loading || !user) {
     return (
       <div className="flex h-screen items-center justify-center text-gray-400">

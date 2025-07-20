@@ -1,4 +1,4 @@
-// AddExpenseForm.tsx — Simplified version using /api/amount-extract directly
+// AddExpenseForm.tsx
 
 "use client";
 
@@ -15,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
+// Constants
 const CATEGORY_OPTIONS = [
   "Groceries",
   "Food",
@@ -28,6 +29,7 @@ const CATEGORY_OPTIONS = [
   "Other",
 ] as const;
 
+// Detect category from raw OCR string
 function detectExpenseCategory(text: string): string {
   const lower = text.toLowerCase();
   if (/(grocery|supermarket|mart)/.test(lower)) return "Groceries";
@@ -41,10 +43,12 @@ function detectExpenseCategory(text: string): string {
   return "Misc";
 }
 
+// Clean amount string
 function normalizeAmount(raw: string): string {
   return raw.replace(/(?<=\d),(?=\d)/g, "").trim();
 }
 
+// Safe JSON parse from API response
 async function safeParseJson<T = unknown>(res: Response): Promise<T | null> {
   const ct = res.headers.get("content-type") || "";
   if (!ct.includes("application/json")) return null;
@@ -70,6 +74,7 @@ export default function AddExpenseForm({ onAdded }: AddExpenseFormProps) {
 
   const showCustomInput = category === "Other" || category === "Misc";
 
+  // Upload handler for both image and PDF
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return toast.error("Please select a file");
@@ -111,6 +116,7 @@ export default function AddExpenseForm({ onAdded }: AddExpenseFormProps) {
     reader.readAsDataURL(file);
   };
 
+  // submit expense form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 

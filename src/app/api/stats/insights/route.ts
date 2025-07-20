@@ -1,25 +1,31 @@
 // File: app/api/stats/insights/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { fetchGeminiText } from "@/lib/gemini";
+
+export const dynamic = "force-dynamic";
+
+interface FinancialStatsRequest {
+  totalIncome?: number;
+  totalExpense?: number;
+  categoryTotals?: Record<string, number>;
+}
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body: FinancialStatsRequest = await req.json();
 
-    const {
-      totalIncome = 0,
-      totalExpense = 0,
-      categoryTotals = {},
-    } = body;
-
+    const totalIncome = Number(body.totalIncome || 0);
+    const totalExpense = Number(body.totalExpense || 0);
     const netSavings = totalIncome - totalExpense;
+    const categoryTotals = body.categoryTotals || {};
 
     const categoryData = Object.entries(categoryTotals).map(([category, amount]) => ({
       category,
-      amount: Number(amount),
+      amount: Number(amount || 0),
     }));
 
     const categoriesText = categoryData.length
-      ? categoryData.map((c) => `- ${c.category}: ₹${c.amount.toFixed(2)}`).join("\n")
+      ? categoryData.map(c => `- ${c.category}: ₹${c.amount.toFixed(2)}`).join("\n")
       : "No category breakdown available.";
 
     const prompt = `
@@ -40,29 +46,17 @@ Please provide:
 Only respond in clear, plain English. No greetings or sign-offs.
     `.trim();
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-        }),
-      }
-    );
+    const insightsText = await fetchGeminiText(prompt);
 
-    const result = await geminiRes.json();
-
-    if (!geminiRes.ok || !result?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.error("❌ Gemini API Error Response:", JSON.stringify(result, null, 2));
-      return NextResponse.json({ error: "Gemini response invalid." }, { status: 500 });
-    }
-
-    const insights = result.candidates[0].content.parts[0].text;
-
-    return NextResponse.json({ insights });
-  } catch (err) {
+    return NextResponse.json({ insights: insightsText });
+  } catch (err: unknown) {
     console.error("💥 Gemini Insight API Error:", err);
-    return NextResponse.json({ error: "Insight generation failed." }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Insight generation failed",
+        message: err instanceof Error ? err.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
