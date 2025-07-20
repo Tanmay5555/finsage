@@ -12,18 +12,6 @@ function loadVisionCredentials() {
   return JSON.parse(raw);
 }
 
-async function extractPdfText(buffer: Buffer): Promise<string> {
-  // Lazy import to avoid build-time pdf-parse issues
-  const pdfParse = (await import("pdf-parse")).default;
-  try {
-    const result = await pdfParse(buffer);
-    return result.text || "";
-  } catch (err) {
-    console.warn("pdf-parse failed:", (err as Error)?.message);
-    return "";
-  }
-}
-
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData().catch(() => null);
@@ -41,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
     if (fileEntry.size > 8_000_000) {
       return NextResponse.json(
-        { error: "File too large (>8MB)", hint: "Compress or reduce resolution" },
+        { error: "File too large (>8MB)", hint: "Compress or reduce resolution." },
         { status: 413 }
       );
     }
@@ -49,26 +37,34 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await fileEntry.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const mime = fileEntry.type;
+
+    const credentials = loadVisionCredentials();
+    const client = new ImageAnnotatorClient({ credentials });
+
+    // Use documentTextDetection for PDFs (and you can also use it for images; it works for both)
+    const visionMethod =
+      mime === "application/pdf"
+        ? client.documentTextDetection({ image: { content: buffer } })
+        : client.textDetection({ image: { content: buffer } });
+
+    const [visionResult] = await visionMethod;
+
     let text = "";
 
     if (mime === "application/pdf") {
-      text = await extractPdfText(buffer);
-      if (!text.trim()) {
-        const credentials = loadVisionCredentials();
-        const client = new ImageAnnotatorClient({ credentials });
-        const [visionResult] = await client.documentTextDetection({ image: { content: buffer } });
-        text = visionResult.fullTextAnnotation?.text || "";
-      }
+      // documentTextDetection path
+      text = visionResult.fullTextAnnotation?.text || "";
     } else {
-      const credentials = loadVisionCredentials();
-      const client = new ImageAnnotatorClient({ credentials });
-      const [visionResult] = await client.textDetection({ image: { content: buffer } });
+      // image path
       text = visionResult.textAnnotations?.[0]?.description || "";
+      if (!text && visionResult.fullTextAnnotation?.text) {
+        text = visionResult.fullTextAnnotation.text;
+      }
     }
 
     if (!text.trim()) {
       return NextResponse.json(
-        { error: "No text detected", hint: "Check clarity / contrast" },
+        { error: "No text detected", hint: "Ensure clarity / contrast / proper scan." },
         { status: 422 }
       );
     }
