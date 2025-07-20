@@ -114,7 +114,7 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
         )}
 
         {!loading && !error && data.length > 0 && (
-          <div className="h-56">
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -122,16 +122,11 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
+                  cy="45%"
                   outerRadius={80}
                   labelLine={false}
                   isAnimationActive
                   animationDuration={800}
-                  label={({ name, percent }: { name?: string; percent?: number }) =>
-                    percent && percent > 0.05
-                      ? `${name} ${(percent * 100).toFixed(0)}%`
-                      : ""
-                  }
                 >
                   {data.map((entry, index) => (
                     <Cell
@@ -154,15 +149,17 @@ export default function SpendingCategoryChart({ month, year }: SpendingCategoryC
                   ]}
                 />
                 <Legend
+                  layout="horizontal"
                   align="center"
                   verticalAlign="bottom"
-                  wrapperStyle={{ color: "#fff", paddingTop: 8 }}
+                  wrapperStyle={{ color: "#fff", paddingTop: 16 }}
                   iconType="circle"
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
         )}
+
 
         {!loading && !error && data.length === 0 && (
           <div className="h-56 flex items-center justify-center text-gray-400">
