@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ImageAnnotatorClient } from "@google-cloud/vision";
 import pdfParse from "pdf-parse";
 
-// export const dynamic = "force-dynamic"; // Uncomment if needed in App Router
+// export const dynamic = "force-dynamic"; // Uncomment if you need non-static behavior
 
 function loadVisionCredentials() {
   const b64 = process.env.GOOGLE_CREDENTIALS_JSON_BASE64;
@@ -26,15 +26,15 @@ export async function POST(req: NextRequest) {
     let text = "";
 
     if (mime === "application/pdf") {
-      // 1. Try extracting embedded text
+      // Try embedded text first
       try {
         const parsed = await pdfParse(buffer);
         text = parsed.text || "";
-      } catch (parseErr) {
+      } catch {
         console.warn("pdf-parse failed; attempting Vision fallback");
       }
 
-      // 2. Fallback to Vision OCR if no embedded text
+      // Fallback to Vision OCR if still empty
       if (!text.trim()) {
         const credentials = loadVisionCredentials();
         const client = new ImageAnnotatorClient({ credentials });
@@ -47,19 +47,18 @@ export async function POST(req: NextRequest) {
         if (!text.trim()) {
           return NextResponse.json(
             {
-              error: "No text detected (PDF may be blank or purely image-based).",
-              hint: "If this is a scanned multi‑page PDF, ensure size <2MB or upload to GCS for async processing.",
+              error: "No text detected (PDF may be blank or image-based).",
+              hint: "If this is a scanned multi-page PDF, ensure size <2MB or upload via GCS.",
             },
             { status: 422 }
           );
         }
       }
     } else {
-      // Image (JPEG/PNG/etc.)
+      // Image path
       const credentials = loadVisionCredentials();
       const client = new ImageAnnotatorClient({ credentials });
       const [imgResult] = await client.textDetection({ image: { content: buffer } });
-
       text = imgResult.textAnnotations?.[0]?.description || "";
       if (!text.trim()) {
         return NextResponse.json(

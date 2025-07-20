@@ -13,112 +13,178 @@ import { useAuth } from "@/context/AuthContext";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-export default function AddExpenseForm({ onAdded }: { onAdded?: () => void }) {
+interface AddExpenseFormProps {
+  onAdded?: () => void;
+}
+
+const CATEGORY_OPTIONS = [
+  "Groceries",
+  "Food",
+  "Travel",
+  "Rent",
+  "Shopping",
+  "Bills",
+  "Medical",
+  "Entertainment",
+  "Misc",
+  "Other",
+] as const;
+
+/* ---------- Helpers ---------- */
+
+function autoDetectCategory(text: string): string {
+  const lower = text.toLowerCase();
+  if (/(grocery|supermarket|mart)/.test(lower)) return "Groceries";
+  if (/(restaurant|food|cafe|dine)/.test(lower)) return "Food";
+  if (/(uber|ola|travel|taxi|flight|train|bus)/.test(lower)) return "Travel";
+  if (/rent/.test(lower)) return "Rent";
+  if (/shopping|store|mall/.test(lower)) return "Shopping";
+  if (/medical|pharma|hospital|clinic/.test(lower)) return "Medical";
+  if (/bill|electricity|water|utility|internet/.test(lower)) return "Bills";
+  if (/movie|entertainment|netflix|spotify|show/.test(lower)) return "Entertainment";
+  return "Misc";
+}
+
+function normalizeAmountString(raw: string): string {
+  return raw.replace(/(?<=\d),(?=\d)/g, "").trim();
+}
+
+async function safeJson<T = unknown>(res: Response): Promise<T | null> {
+  const ct = res.headers.get("content-type") || "";
+  if (!ct.includes("application/json")) return null;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+/* ---------- Component ---------- */
+
+export default function AddExpenseForm({ onAdded }: AddExpenseFormProps) {
+  const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const [date, setDate] = useState<Date | null>(new Date());
-  const [loading, setLoading] = useState(false);
+  const [loadingOCR, setLoadingOCR] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const { user } = useAuth();
-
-  const categoryOptions = [
-    "Groceries",
-    "Food",
-    "Travel",
-    "Rent",
-    "Shopping",
-    "Bills",
-    "Medical",
-    "Entertainment",
-    "Misc",
-    "Other",
-  ];
+  const showCustomCategory = category === "Other" || category === "Misc";
 
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      toast.error("Please select a file");
+      return;
+    }
 
-    setLoading(true);
+    setLoadingOCR(true);
+    setCategory("");
+    setCustomCategory("");
+
     const formData = new FormData();
     formData.append("receipt", file);
 
     try {
+      // OCR Call
       const ocrRes = await fetch("/api/ocr", { method: "POST", body: formData });
-      const ocrData = await ocrRes.json();
+      if (!ocrRes.ok) {
+        const txt = await ocrRes.text();
+        console.error("OCR error:", ocrRes.status, txt);
+        toast.error("OCR failed");
+        return;
+      }
+      const ocrData = await safeJson<{ text?: string }>(ocrRes);
       const extractedText = ocrData?.text;
-      if (!extractedText) throw new Error("No text extracted");
 
+      if (!extractedText || !extractedText.trim()) {
+        toast.error("No text found in receipt");
+        return;
+      }
+
+      // Gemini Call
       const geminiRes = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: extractedText }),
       });
 
-      const geminiData = await geminiRes.json();
-      if (!geminiData?.amount) {
-        toast.error("Failed to extract amount from receipt");
-        return;
+      if (!geminiRes.ok) {
+        const txt = await geminiRes.text();
+        console.warn("Gemini API non-OK:", geminiRes.status, txt);
+        toast.warning("Could not auto-extract amount. Please enter manually.");
+      } else {
+        const geminiData = await safeJson<{ amount?: number }>(geminiRes);
+        if (geminiData?.amount) {
+          setAmount(normalizeAmountString(String(geminiData.amount)));
+        } else {
+          toast.warning("Amount not detected. Enter manually.");
+        }
       }
 
-      setAmount(String(geminiData.amount));
+      // Auto category + date
       setDate(new Date());
-
-      const lowerText = extractedText.toLowerCase();
-      if (lowerText.includes("grocery") || lowerText.includes("supermarket")) setCategory("Groceries");
-      else if (lowerText.includes("rent")) setCategory("Rent");
-      else if (lowerText.includes("travel") || lowerText.includes("uber") || lowerText.includes("ola")) setCategory("Travel");
-      else if (lowerText.includes("food") || lowerText.includes("restaurant")) setCategory("Food");
-      else if (lowerText.includes("shopping")) setCategory("Shopping");
-      else setCategory("Misc");
-
-      toast.success("Expense details extracted successfully");
-    } catch (err) {
-      console.error("Auto extraction failed:", err);
+      setCategory(autoDetectCategory(extractedText));
+      toast.success("Receipt processed");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("Auto extraction failed:", message);
       toast.error("Auto extraction failed");
     } finally {
-      setLoading(false);
+      setLoadingOCR(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalCategory = category === "Other" || category === "Misc" ? customCategory : category;
+
+    const finalCategory =
+      showCustomCategory ? customCategory.trim() : category;
 
     if (!amount || !finalCategory || !date) {
       toast.error("All fields are required.");
       return;
     }
 
-    if (parseFloat(amount) <= 0) {
-      toast.error("Amount must be greater than 0");
+    if (showCustomCategory && !customCategory.trim()) {
+      toast.error("Please enter a custom category.");
+      return;
+    }
+
+    const numeric = Number.parseFloat(normalizeAmountString(amount));
+    if (Number.isNaN(numeric) || numeric <= 0) {
+      toast.error("Enter a valid amount > 0");
       return;
     }
 
     if (!user) {
-      toast.error("User not authenticated");
+      toast.error("You must be logged in.");
       return;
     }
 
+    setSubmitting(true);
     try {
       await addDoc(collection(db, "expenses"), {
-        amount: parseFloat(amount),
+        amount: numeric,
         category: finalCategory,
         date: date.toISOString(),
         userId: user.uid,
         createdAt: serverTimestamp(),
       });
 
-      toast.success("Expense added successfully");
+      toast.success("Expense added");
       setAmount("");
       setCategory("");
       setCustomCategory("");
       setDate(new Date());
-
-      if (onAdded) onAdded();
-    } catch (err) {
-      console.error("Error adding expense:", err);
+      onAdded?.();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("Error adding expense:", message);
       toast.error("Failed to add expense");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -137,79 +203,96 @@ export default function AddExpenseForm({ onAdded }: { onAdded?: () => void }) {
               type="file"
               accept="image/*,application/pdf"
               onChange={handleReceiptUpload}
-              disabled={loading}
+              disabled={loadingOCR || submitting}
               className="text-white file:text-white file:bg-[#1f2547] file:border-none"
             />
-            {loading && <p className="text-sm text-muted-foreground">Extracting...</p>}
+            {loadingOCR && (
+              <p className="text-sm text-indigo-300 animate-pulse">
+                Extracting data...
+              </p>
+            )}
           </div>
 
           {/* Amount */}
           <div className="space-y-1">
-            <Label htmlFor="amount" className="text-sm text-white">Amount (₹)</Label>
+            <Label htmlFor="amount" className="text-sm text-white">
+              Amount (₹)
+            </Label>
             <div className="relative">
               <Input
                 id="amount"
                 type="number"
+                inputMode="decimal"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                disabled={submitting}
                 className="bg-[#1f2547] border border-border text-white pl-10"
               />
               <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-indigo-400 pointer-events-none" />
             </div>
           </div>
 
-          {/* Category Dropdown */}
+          {/* Category */}
           <div className="space-y-1">
-            <Label htmlFor="category" className="text-sm text-white">Category</Label>
+            <Label htmlFor="category" className="text-sm text-white">
+              Category
+            </Label>
             <select
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
+              disabled={submitting}
               className="bg-[#1f2547] border border-border text-white w-full py-2 px-3 rounded"
             >
               <option value="">Select category</option>
-              {categoryOptions.map((option) => (
+              {CATEGORY_OPTIONS.map((option) => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
           </div>
 
-          {/* Custom Category if "Other" or "Misc" */}
-          {(category === "Other" || category === "Misc") && (
+          {/* Custom Category */}
+          {showCustomCategory && (
             <div className="space-y-1">
-              <Label htmlFor="customCategory" className="text-sm text-white">Custom Category</Label>
+              <Label htmlFor="customCategory" className="text-sm text-white">
+                Custom Category
+              </Label>
               <Input
                 id="customCategory"
                 type="text"
                 placeholder="Enter category"
                 value={customCategory}
                 onChange={(e) => setCustomCategory(e.target.value)}
+                disabled={submitting}
                 className="bg-[#1f2547] border border-border text-white"
               />
             </div>
           )}
 
-          {/* Date Picker */}
+          {/* Date */}
           <div className="space-y-1">
-            <Label htmlFor="date" className="text-sm text-white">Date</Label>
+            <Label htmlFor="date" className="text-sm text-white">
+              Date
+            </Label>
             <div className="relative">
               <DatePicker
                 selected={date}
                 onChange={(d) => setDate(d)}
                 placeholderText="Select a date"
                 className="bg-[#1f2547] text-white w-full py-2 px-3 rounded border border-border placeholder:text-muted-foreground pl-10"
+                disabled={submitting}
               />
               <CalendarIcon className="absolute left-3 top-2.5 h-4 w-4 text-pink-400 pointer-events-none" />
             </div>
           </div>
 
-          {/* Submit */}
           <Button
             type="submit"
-            className="w-full mt-2 bg-pink-600 hover:bg-pink-700 text-white"
+            disabled={submitting || loadingOCR}
+            className="w-full mt-2 bg-pink-600 hover:bg-pink-700 text-white disabled:opacity-70"
           >
-            Add Expense
+            {submitting ? "Saving..." : "Add Expense"}
           </Button>
         </form>
       </CardContent>
