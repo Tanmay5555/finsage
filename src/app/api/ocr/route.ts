@@ -9,10 +9,66 @@ function loadVisionCredentials() {
   const raw = b64
     ? Buffer.from(b64, "base64").toString("utf8")
     : process.env.GOOGLE_CREDENTIALS_JSON || "{}";
-  return JSON.parse(raw);
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed.private_key || !parsed.client_email) {
+      throw new Error("Missing credential key fields");
+    }
+    return parsed;
+  } catch (e) {
+    console.error("Credential parse failed head:", raw.slice(0, 80));
+    throw new Error("Invalid Vision credentials JSON");
+  }
+}
+
+async function extractPdfEmbedded(buffer: Buffer, debug = false): Promise<string> {
+  try {
+    const pdfParse = (await import("pdf-parse")).default;
+    const result = await pdfParse(buffer);
+    const text = result.text || "";
+    if (debug) {
+      console.log("[OCR] pdf-parse text length:", text.length);
+    }
+    return text;
+  } catch (err) {
+    console.warn("[OCR] pdf-parse failed:", (err as Error).message);
+    return "";
+  }
+}
+
+async function extractWithVision(buffer: Buffer, credentials: any, debug = false): Promise<string> {
+  const client = new ImageAnnotatorClient({ credentials, fallback: true });
+
+  // documentTextDetection first (richer layout)
+  const [docResult] = await client.documentTextDetection({ image: { content: buffer } });
+  let text =
+    docResult.fullTextAnnotation?.text ||
+    docResult.textAnnotations?.[0]?.description ||
+    "";
+
+  if (debug) {
+    console.log("[OCR] documentTextDetection length:", text.length);
+  }
+
+  // fallback to basic textDetection if still empty
+  if (!text.trim()) {
+    const [simple] = await client.textDetection({ image: { content: buffer } });
+    const alt =
+      simple.textAnnotations?.[0]?.description ||
+      simple.fullTextAnnotation?.text ||
+      "";
+    if (debug) {
+      console.log("[OCR] textDetection fallback length:", alt.length);
+    }
+    if (alt.trim()) text = alt;
+  }
+
+  return text;
 }
 
 export async function POST(req: NextRequest) {
+  const debug = req.nextUrl.searchParams.get("debug") === "1";
+
   try {
     const formData = await req.formData().catch(() => null);
     if (!formData) {
@@ -27,9 +83,12 @@ export async function POST(req: NextRequest) {
     if (fileEntry.size === 0) {
       return NextResponse.json({ error: "Empty file" }, { status: 400 });
     }
-    if (fileEntry.size > 8_000_000) {
+    if (fileEntry.size < 1500) {
+      return NextResponse.json({ error: "File too small (likely blank)" }, { status: 400 });
+    }
+    if (fileEntry.size > 10_000_000) {
       return NextResponse.json(
-        { error: "File too large (>8MB)", hint: "Compress or reduce resolution." },
+        { error: "File too large (>10MB)", hint: "Compress or reduce resolution." },
         { status: 413 }
       );
     }
@@ -37,39 +96,42 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await fileEntry.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const mime = fileEntry.type;
-
     const credentials = loadVisionCredentials();
-    const client = new ImageAnnotatorClient({ credentials });
-
-    // Use documentTextDetection for PDFs (and you can also use it for images; it works for both)
-    const visionMethod =
-      mime === "application/pdf"
-        ? client.documentTextDetection({ image: { content: buffer } })
-        : client.textDetection({ image: { content: buffer } });
-
-    const [visionResult] = await visionMethod;
 
     let text = "";
 
     if (mime === "application/pdf") {
-      // documentTextDetection path
-      text = visionResult.fullTextAnnotation?.text || "";
-    } else {
-      // image path
-      text = visionResult.textAnnotations?.[0]?.description || "";
-      if (!text && visionResult.fullTextAnnotation?.text) {
-        text = visionResult.fullTextAnnotation.text;
+      // 1. Try embedded text
+      text = await extractPdfEmbedded(buffer, debug);
+      // quick heuristic: accept if reasonably substantial
+      if (text.trim().length < 15) {
+        if (debug) console.log("[OCR] Embedded PDF text too short; falling back to Vision");
+        text = "";
       }
+      // 2. If still empty, Vision OCR
+      if (!text.trim()) {
+        text = await extractWithVision(buffer, credentials, debug);
+      }
+    } else {
+      // Image path
+      text = await extractWithVision(buffer, credentials, debug);
     }
 
-    if (!text.trim()) {
+    // Final heuristic: remove excessive null bytes / control chars
+    text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "").trim();
+
+    if (!text) {
       return NextResponse.json(
-        { error: "No text detected", hint: "Ensure clarity / contrast / proper scan." },
+        {
+          error: "No text detected",
+          hint: "Try a clearer scan (focus, lighting) or upload a higher quality source.",
+        },
         { status: 422 }
       );
     }
 
-    return NextResponse.json({ text });
+    if (debug) console.log("[OCR] Final returned length:", text.length);
+    return NextResponse.json({ text, source: mime === "application/pdf" ? "pdf-hybrid" : "vision" });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("OCR route error:", message);
