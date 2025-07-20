@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,6 @@ const sourceOptions = [
 ];
 
 export default function AddIncomeForm({ onAdded }: { onAdded: () => void }) {
-  const router = useRouter();
   const { user } = useAuth();
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState("");

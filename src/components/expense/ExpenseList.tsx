@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowUpRight } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -33,10 +33,25 @@ export default function ExpenseList({ refreshKey = 0 }: { refreshKey?: number })
           orderBy("date", "desc")
         );
         const snapshot = await getDocs(q);
-        const data = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Expense[];
+        const data = snapshot.docs.map((doc) => {
+          const docData = doc.data();
+          const rawDate = docData.date;
+
+          let formattedDate = "";
+          if (rawDate instanceof Timestamp) {
+            formattedDate = rawDate.toDate().toISOString();
+          } else if (typeof rawDate === "string" || typeof rawDate === "number") {
+            formattedDate = new Date(rawDate).toISOString();
+          }
+
+          return {
+            id: doc.id,
+            category: docData.category || "Misc",
+            amount: docData.amount || 0,
+            date: formattedDate,
+          } as Expense;
+        });
+
         setExpenses(data);
       } catch (error) {
         console.error("Error fetching expenses:", error);
@@ -63,7 +78,7 @@ export default function ExpenseList({ refreshKey = 0 }: { refreshKey?: number })
                 <Skeleton key={i} className="h-10 w-full rounded-md bg-muted/30" />
               ))}
             </div>
-          ) : (
+          ) : expenses.length > 0 ? (
             <ul className="space-y-4">
               {expenses.map((expense) => (
                 <li
@@ -73,11 +88,14 @@ export default function ExpenseList({ refreshKey = 0 }: { refreshKey?: number })
                   <div>
                     <p className="text-sm font-medium">{expense.category}</p>
                     <p className="text-xs text-muted-foreground text-purple-300">
-                      {new Date(expense.date).toLocaleDateString("en-IN", {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}
+                      {!expense.date || isNaN(new Date(expense.date).getTime())
+                        ? "Unknown Date"
+                        : new Date(expense.date).toLocaleDateString("en-IN", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })}
+
                     </p>
                   </div>
                   <Badge
@@ -88,14 +106,14 @@ export default function ExpenseList({ refreshKey = 0 }: { refreshKey?: number })
                   </Badge>
                 </li>
               ))}
-              {expenses.length === 0 && !loading && (
-                <p className="text-sm text-muted-foreground text-center">
-                  No expense records found.
-                </p>
-              )}
             </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center">
+              No expense records found.
+            </p>
           )}
         </ScrollArea>
+
       </CardContent>
     </Card>
   );

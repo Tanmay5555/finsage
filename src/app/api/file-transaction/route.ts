@@ -1,3 +1,4 @@
+// ✅ Server-only API route — NO "use client"
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "fs/promises";
 import { tmpdir } from "os";
@@ -5,7 +6,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import * as xlsx from "xlsx";
 
-// Gemini Prompt Logic
+// 🔍 Gemini Classification Prompt
 const classifyWithGemini = async (text: string) => {
   const prompt = `
 You are a personal finance assistant.
@@ -36,7 +37,11 @@ TEXT:
   );
 
   const result = await geminiRes.json();
-  const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+  let rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+  if (rawText.startsWith("```json")) {
+    rawText = rawText.replace(/```json|```/g, "").trim();
+  }
+  // console.log("🤖 Gemini Raw Response:", rawText);
   try {
     return JSON.parse(rawText);
   } catch {
@@ -51,14 +56,19 @@ export async function POST(req: NextRequest) {
   const file = formData.get("receipt") as File;
   if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
+  // ✅ Optional: File size check
+  if (file.size > 5 * 1024 * 1024) {
+    return NextResponse.json({ error: "File too large (max 5MB)" }, { status: 400 });
+  }
+
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const tempPath = path.join(tmpdir(), `${uuidv4()}-${file.name}`);
-    await writeFile(tempPath, buffer);
+    await writeFile(tempPath, buffer); // ✅ Write file to temp directory
 
     let extractedText = "";
 
-    // Lazy import pdf-parse only when needed
+    // ✅ Lazy load pdf-parse only if needed to avoid fs build error
     if (file.name.endsWith(".pdf")) {
       const pdfParse = (await import("pdf-parse")).default;
       const data = await pdfParse(buffer);
@@ -77,9 +87,14 @@ export async function POST(req: NextRequest) {
     }
 
     const transactions = await classifyWithGemini(extractedText);
+    // console.log("📃 Extracted Text:", extractedText);
+    // console.log("✅ Parsed Transactions:", transactions);
+
     return NextResponse.json({ transactions });
+
+
   } catch (err) {
-    console.error("file-transaction error:", err);
+    console.error("❌ file-transaction error:", err);
     return NextResponse.json({ error: "Transaction extraction failed" }, { status: 500 });
   }
 }
