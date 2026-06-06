@@ -2,6 +2,7 @@
   "name": "finsage",
   "version": "0.1.0",
   "private": true,
+  "author": "Tanmay Gupta <varshneytanmay75@gmail.com>",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",

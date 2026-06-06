@@ -1,80 +1,108 @@
-﻿# Finsage
+# 🌐 Finsage — Premium AI-Powered Personal Finance Dashboard
 
-A modern personal finance dashboard built with Next.js, Firebase, Tailwind CSS, and AI-powered transaction automation.
+Finsage is a modern, premium personal finance assistant and tracking dashboard designed to help users take control of their financial health. Built using Next.js (App Router), Tailwind CSS, and Firebase, Finsage integrates advanced data visualization with cutting-edge AI insights. 
 
-## About
+Using Google's **Gemini 2.5 Flash API**, Finsage automatically extracts transaction data from receipts, statements, and invoices, and provides intelligent monthly financial summaries and tips.
 
-Finsage is designed to help users track income, expenses, and financial trends through a clean dashboard, upload-based transaction extraction, and AI-enhanced insights.
+---
 
-## Features
+## 🚀 Key Features
 
-- Income and expense tracking with add, edit, and list views
-- AI-assisted amount/category extraction from receipts and statements
-- Bulk upload support for CSV/XLS/PDF transaction import
-- Dashboard charts for income vs expense, savings trends, and category breakdowns
-- Firebase authentication and Firestore-backed data storage
-- Responsive layout optimized for desktop and mobile
+*   📊 **Comprehensive Analytics Dashboard**: Track total balance, net income, expenses, and savings rates with interactive charting.
+*   🧠 **AI Financial Advisor**: Receive personalized, context-aware insights on income, spending, and tips to improve savings, processed directly by Gemini.
+*   🧾 **AI Receipt OCR & File Import**: Upload PDFs, CSVs, or Excel sheets. Finsage uses Gemini's multi-modal capabilities to instantly parse transaction amounts, dates, and vendors.
+*   📈 **Stunning Visualizations**: Interactive Recharts components including savings trend area charts, income vs. expense comparison bar charts, and category-wise spending breakdown donut charts.
+*   🔐 **Secure Authentication**: User sign-up, login, and secure session management via Firebase Authentication.
+*   📁 **Cloud-Synced Database**: Instant updates and real-time document storage using Firebase Firestore.
+*   ✨ **Premium UI/UX**: Clean dark-mode card aesthetics combined with interactive animations, Lucide React icons, and custom layout frameworks.
 
-## Tech Stack
+---
 
-- **Framework:** Next.js (App Router)
-- **UI:** React, Tailwind CSS, shadcn/ui
-- **Data Visualization:** Recharts
-- **Auth / Database:** Firebase Auth + Firestore
-- **AI / OCR:** Google Cloud Vision, Google Gemini
-- **File Parsing:** pdf-parse, xlsx
+## 🛠️ Tech Stack
 
-## Quick Start
+*   **Framework**: Next.js 15+ (App Router, JavaScript)
+*   **Styling**: Tailwind CSS, shadcn/ui components, custom HSL color palette
+*   **Data Visualization**: Recharts
+*   **Auth & Database**: Firebase Auth + Firebase Firestore
+*   **AI/OCR Integration**: Google Gemini API (`@google/generative-ai` with `gemini-2.5-flash`)
+*   **File Parsers**: `formidable` (multi-part forms), `pdf-parse` (PDF text extraction), `xlsx` (Excel/CSV sheets parser)
+
+---
+
+## 📂 Project Structure
 
 ```bash
-git clone https://github.com/JrG-One/Finsage.git
+Finsage/
+├── public/                 # Static assets (icons, images)
+├── src/
+│   ├── app/                # Next.js App Router (pages and API endpoints)
+│   │   ├── account/        # User Profile Management
+│   │   ├── api/            # Serverless API routes (AI & Parsing endpoints)
+│   │   │   ├── amount-extract     # AI amount extraction from uploads
+│   │   │   ├── file-transaction   # Bulk document parsing & categorization
+│   │   │   ├── insight            # Monthly Gemini insight generation
+│   │   │   └── stats              # Financial analytics calculation APIs
+│   │   ├── dashboard/      # Main application workspace
+│   │   ├── expense/        # Expense tracking & logs
+│   │   ├── income/         # Income tracking & logs
+│   │   ├── settings/       # App preferences
+│   │   ├── statistics/     # Advanced graphs and charts
+│   │   └── upload-transactions # OCR Document uploads
+│   ├── components/         # Reusable UI & Dashboard components
+│   │   ├── dashboard/      # Specific cards, tables, and charts
+│   │   ├── expense/        # Add-expense forms and list components
+│   │   ├── income/         # Add-income forms and list components
+│   │   ├── layouts/        # Shared application layouts
+│   │   ├── magicui/        # Custom interactive animations
+│   │   └── ui/             # shadcn core atomic components
+│   ├── context/            # AuthContext & global states
+│   └── lib/                # Utility helpers (Gemini integrations, db config)
+```
+
+---
+
+## ⚙️ Configuration & Setup
+
+### 1. Prerequisites
+Ensure you have [Node.js](https://nodejs.org/) installed (v18.x or higher recommended).
+
+### 2. Environment Variables
+Create a `.env.local` file in the root directory and add the following credentials:
+
+```env
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_firebase_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_firebase_app_id
+
+# Google Gemini API
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+### 3. Installation
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/varshneytanmay75/Finsage.git
 cd Finsage
 npm install
-npm run dev
 ```
 
-Open http://localhost:3000 in your browser.
-
-## Environment Variables
-
-Create a `.env.local` file in the project root with your keys.
+### 4. Running Locally
+Start the development server:
 
 ```bash
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-
-GEMINI_API_KEY=your_gemini_api_key
-GOOGLE_CREDENTIALS_JSON=./google-credentials.json
+npm run dev
 ```
+Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
 
-## Local Development
+---
 
-1. Install dependencies: `npm install`
-2. Create `.env.local` with Firebase and Google credentials
-3. Run development server: `npm run dev`
-4. Visit: `http://localhost:3000`
+## 👨‍💻 Developer & License
 
-## Deployment
-
-This project can be deployed on Vercel, Netlify, or any platform that supports Next.js.
-
-## Repository Structure
-
-- `src/app/` — pages and route handlers
-- `src/components/` — reusable UI and dashboard components
-- `src/lib/` — utility functions and API helpers
-- `src/context/` — auth and app context providers
-
-## GitHub
-
-This repository is configured for GitHub at:
-
-`https://github.com/JrG-One/Finsage`
-
-## License
-
-MIT License
+*   **Author**: Tanmay Gupta
+*   **Email**: varshneytanmay75@gmail.com
+*   **License**: Licensed under the [MIT License](LICENSE).
