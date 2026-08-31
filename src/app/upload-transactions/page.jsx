@@ -42,14 +42,14 @@ export default function UploadTransactionsPage() {
       if (Array.isArray(data.transactions)) {
         setTransactions(data.transactions);
         if (data.transactions.length === 0) {
-          alert("No transactions found in the uploaded file. Please check the file format and content.");
+          alert("No transactions found in the uploaded document. Please ensure the file contains readable transactions.");
         }
       } else {
-        alert(data.error || "Failed to extract transactions.");
+        alert(data.message || data.error || "Failed to extract transactions.");
       }
     } catch (err) {
       console.error("Upload error:", err);
-      alert("Something went wrong while extracting transactions.");
+      alert(`Something went wrong while extracting transactions: ${err.message || "Unknown error"}`);
     } finally {
       setLoading(false);
     }
@@ -117,13 +117,13 @@ export default function UploadTransactionsPage() {
           <CardContent className="p-6">
             <h2 className="text-3xl font-bold text-white mb-2">Upload Bank Statement</h2>
             <p className="text-purple-300 text-base mb-6">
-              Upload a PDF, Excel, or CSV file and extract transactions using AI.
+              Upload a PDF, bank slip image (PNG/JPG), Excel, or CSV statement and extract transactions using AI.
             </p>
 
             <div className="flex items-center justify-center gap-4 mb-6">
               <Input
                 type="file"
-                accept=".pdf,.xlsx,.xls,.csv"
+                accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg,.webp"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 className="w-full max-w-sm text-white file:text-white file:bg-[#1f2547] file:border-none" />
               
@@ -172,12 +172,12 @@ export default function UploadTransactionsPage() {
                           <td className="px-3 py-2">
                             <span
                           className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          tx.type === "CR" ?
+                          tx.type === "Credit" || tx.type === "CR" ?
                           "bg-green-100 text-green-700" :
                           "bg-red-100 text-red-700"}`
                           }>
                           
-                              {tx.type === "CR" ? "Credit" : "Debit"}
+                              {tx.type === "Credit" || tx.type === "CR" ? "Credit" : "Debit"}
                             </span>
                           </td>
                           <td className="px-3 py-2">

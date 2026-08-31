@@ -28,7 +28,7 @@ export default function StatisticsPage() {
   const [insightVisible, setInsightVisible] = useState(false);
 
   const fetchStats = async () => {
-    if (!dateRange || !user?.uid) return;
+    if (!dateRange?.from || !dateRange?.to || !user?.uid) return;
 
     setLoadingStats(true);
     setLoadingInsight(true);

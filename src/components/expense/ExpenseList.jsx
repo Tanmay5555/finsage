@@ -18,17 +18,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 
 
-const formatDate = (raw) => {
-  if (!raw) return "Unknown Date";
-
-  let dateObj = null;
-  if (raw instanceof Timestamp) {
-    dateObj = raw.toDate();
-  } else if (typeof raw === "string" || typeof raw === "number") {
-    dateObj = new Date(raw);
+const parseToDate = (raw) => {
+  if (!raw) return null;
+  if (raw instanceof Timestamp) return raw.toDate();
+  if (raw?.seconds) return new Date(raw.seconds * 1000);
+  if (raw instanceof Date) return raw;
+  if (typeof raw === "string" || typeof raw === "number") {
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? null : d;
   }
+  return null;
+};
 
-  if (!dateObj || isNaN(dateObj.getTime())) return "Unknown Date";
+const formatDate = (raw) => {
+  const dateObj = parseToDate(raw);
+  if (!dateObj) return "Unknown Date";
 
   return dateObj.toLocaleDateString("en-IN", {
     weekday: "short",
@@ -50,20 +54,23 @@ export default function ExpenseList({ refreshKey = 0 }) {
       try {
         const q = query(
           collection(db, "expenses"),
-          where("userId", "==", user.uid),
-          orderBy("date", "desc")
+          where("userId", "==", user.uid)
         );
         const snapshot = await getDocs(q);
 
         const formatted = snapshot.docs.map((doc) => {
           const data = doc.data();
+          const dateObj = parseToDate(data.date);
           return {
             id: doc.id,
             category: data.category || "Misc",
             amount: Number(data.amount) || 0,
-            date: formatDate(data.date)
+            date: formatDate(data.date),
+            timestamp: dateObj ? dateObj.getTime() : 0
           };
         });
+
+        formatted.sort((a, b) => b.timestamp - a.timestamp);
 
         setExpenses(formatted);
       } catch (err) {

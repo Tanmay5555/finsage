@@ -99,7 +99,7 @@ export default function AddIncomeForm({ onAdded }) {
 
         if (data.amount != null) {
           setAmount(normalizeAmount(data.amount.toString()));
-          setSource(data.source || detectIncomeSource(data.modelRaw || ""));
+          setSource(detectIncomeSource(data.rawText || data.modelRaw || ""));
           setDate(new Date());
           toast.success("Amount extracted");
         } else {

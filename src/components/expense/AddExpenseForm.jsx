@@ -99,7 +99,7 @@ export default function AddExpenseForm({ onAdded }) {
 
         if (data.amount) {
           setAmount(normalizeAmount(data.amount.toString()));
-          setCategory(detectExpenseCategory(data.modelRaw || ""));
+          setCategory(detectExpenseCategory(data.rawText || data.modelRaw || ""));
           setDate(new Date());
           toast.success("Details extracted successfully");
         } else {

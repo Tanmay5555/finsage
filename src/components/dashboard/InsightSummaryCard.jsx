@@ -112,30 +112,32 @@ Savings: ₹${savings.toFixed(2)}
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          console.log("API Error:", errData); // ✅ DEBUG
-          throw new Error(String(errData.error || "Unknown Gemini error"));
+          const errData = await res.json().catch(() => ({}));
+          console.error("API Error:", errData);
+          throw new Error(String(errData.message || errData.error || "Unknown Gemini error"));
         }
 
         const data = await res.json();
 
-        const content = data?.content?.trim(); // ✅ FIXED HERE
+        const content = data?.content?.trim();
 
         if (!content) {
           setError("No insight returned from Gemini.");
           return;
         }
 
-        // Parse markdown bullets
-        const bullets = content.
-        split("\n").
-        filter((line) => line.trim().startsWith("*")).
-        map((line) => line.replace(/^\*\s*/, "").trim());
+        // Parse markdown bullets or non-empty lines
+        const bullets = content
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .map((line) => line.replace(/^[\*\-\•\d+\.]+\s*/, "").trim())
+          .filter((line) => line.length > 0);
 
         setInsightPoints(bullets.slice(0, 3));
       } catch (err) {
         console.error("Insight fetch error:", err);
-        setError("Failed to analyze your data. Please try again later.");
+        setError(err instanceof Error ? err.message : "Failed to analyze your data. Please try again later.");
       } finally {
         setLoading(false);
       }
