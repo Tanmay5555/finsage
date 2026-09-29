@@ -22,27 +22,24 @@ const hasValidKey = Boolean(
 
 let app;
 
-if (hasValidKey) {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-} else if (typeof window !== "undefined") {
-  console.warn("⚠️ NEXT_PUBLIC_FIREBASE_API_KEY appears to be missing or invalid in browser runtime.", {
-    hasKey: Boolean(firebaseConfig.apiKey),
-    projectId: firebaseConfig.projectId
-  });
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+if (getApps().length > 0) {
+  app = getApp();
+} else if (hasValidKey) {
+  app = initializeApp(firebaseConfig);
 } else {
-  // Build-time SSR static generation dummy fallback
-  app = getApps().length === 0 ? initializeApp({
-    apiKey: "mock-api-key-for-next-build",
-    authDomain: "mock-auth-domain",
-    projectId: "mock-project-id",
-    storageBucket: "mock-storage-bucket",
-    messagingSenderId: "mock-messaging-sender-id",
-    appId: "mock-app-id"
-  }) : getApp();
+  // Safe fallback initialization to prevent page crashes if environment variables are initializing
+  app = initializeApp({
+    apiKey: firebaseConfig.apiKey || "mock-api-key-for-next-build",
+    authDomain: firebaseConfig.authDomain || "mock-auth-domain",
+    projectId: firebaseConfig.projectId || "mock-project-id",
+    storageBucket: firebaseConfig.storageBucket || "mock-storage-bucket",
+    messagingSenderId: firebaseConfig.messagingSenderId || "mock-messaging-sender-id",
+    appId: firebaseConfig.appId || "mock-app-id"
+  });
 }
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
 
