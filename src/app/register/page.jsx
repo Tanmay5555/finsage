@@ -42,8 +42,20 @@ export default function RegisterPage() {
       toast.success("Registration successful!");
       router.push("/dashboard");
     } catch (err) {
-      const message =
-      err instanceof Error ? err.message : "Registration failed. Please try again.";
+      console.error("Register error:", err);
+      const code = err?.code || "";
+      let message = err instanceof Error ? err.message : "Registration failed. Please try again.";
+
+      if (code === "auth/invalid-api-key" || message.includes("API key")) {
+        message = "Firebase API Key is missing or invalid on Vercel. Please check Vercel Environment Variables.";
+      } else if (code === "auth/unauthorized-domain") {
+        message = "This Vercel domain is not authorized in Firebase Console -> Authentication -> Settings -> Authorized domains.";
+      } else if (code === "auth/email-already-in-use") {
+        message = "This email address is already registered. Please login instead.";
+      } else if (code === "auth/weak-password") {
+        message = "Password is too weak. Please use at least 6 characters.";
+      }
+
       toast.error(message);
     } finally {
       setLoading(false);

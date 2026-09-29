@@ -12,7 +12,7 @@ export async function fetchGeminiText(prompt) {
   const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
@@ -22,7 +22,7 @@ export async function fetchGeminiText(prompt) {
     return text;
   } catch (err) {
     try {
-      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-3.6-pro" });
+      const fallbackModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await fallbackModel.generateContent(prompt);
       const text = result.response.text();
       if (text) return text;
@@ -40,7 +40,12 @@ export async function fetchGeminiWithInlineData(params) {
   const apiKey = getGeminiApiKey();
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+  let model;
+  try {
+    model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  } catch {
+    model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  }
 
   // Clean the base64 string if it contains the data URL prefix
   let cleanBase64 = base64;

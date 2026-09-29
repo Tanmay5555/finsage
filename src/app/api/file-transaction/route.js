@@ -126,7 +126,8 @@ export async function POST(req) {
     if (fileExt === ".pdf") {
       // Try text extraction first via pdf-parse
       try {
-        const pdfParse = (await import("pdf-parse")).default;
+        const pdfParseModule = await import("pdf-parse/lib/pdf-parse.js");
+        const pdfParse = pdfParseModule.default || pdfParseModule;
         const pdfData = await pdfParse(buffer);
         const extractedText = pdfData.text?.trim();
 

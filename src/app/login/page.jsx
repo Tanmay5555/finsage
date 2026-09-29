@@ -35,8 +35,18 @@ export default function LoginPage() {
       toast.success("Welcome back 👋");
       router.push("/dashboard");
     } catch (err) {
-      const message =
-      err instanceof Error ? err.message : "Login failed. Please try again.";
+      console.error("Login error:", err);
+      const code = err?.code || "";
+      let message = err instanceof Error ? err.message : "Login failed. Please try again.";
+
+      if (code === "auth/invalid-api-key" || message.includes("API key")) {
+        message = "Firebase API Key is missing or invalid on Vercel. Please check Vercel Environment Variables.";
+      } else if (code === "auth/unauthorized-domain") {
+        message = "This Vercel domain is not authorized in Firebase Console -> Authentication -> Settings -> Authorized domains.";
+      } else if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+        message = "Invalid email or password. Please check your credentials.";
+      }
+
       toast.error(message);
     } finally {
       setLoading(false);
