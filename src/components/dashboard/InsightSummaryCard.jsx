@@ -4,13 +4,8 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { BadgeCheck, Lightbulb, TrendingUp } from "lucide-react";
+import { BadgeCheck, Lightbulb, TrendingUp, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-
-
-
-
-
 
 export default function InsightSummaryCard({ month, year }) {
   const { user } = useAuth();
@@ -35,7 +30,6 @@ export default function InsightSummaryCard({ month, year }) {
       let totalExpense = 0;
 
       try {
-        // 🔹 Fetch income entries
         const incomeQuery = query(
           collection(db, "incomes"),
           where("userId", "==", user.uid)
@@ -46,21 +40,20 @@ export default function InsightSummaryCard({ month, year }) {
           const rawDate = d.date;
 
           let dt = null;
-          if (rawDate?.seconds) dt = new Date(rawDate.seconds * 1000);else
-          if (typeof rawDate === "string") dt = new Date(rawDate);else
-          if (rawDate instanceof Date) dt = rawDate;
+          if (rawDate?.seconds) dt = new Date(rawDate.seconds * 1000);
+          else if (typeof rawDate === "string") dt = new Date(rawDate);
+          else if (rawDate instanceof Date) dt = rawDate;
 
           if (
-          dt &&
-          dt.getFullYear() === year &&
-          dt.getMonth() === month &&
-          typeof d.amount === "number")
-          {
+            dt &&
+            dt.getFullYear() === year &&
+            dt.getMonth() === month &&
+            typeof d.amount === "number"
+          ) {
             totalIncome += d.amount;
           }
         });
 
-        // 🔹 Fetch expense entries
         const expenseQuery = query(
           collection(db, "expenses"),
           where("userId", "==", user.uid)
@@ -71,23 +64,22 @@ export default function InsightSummaryCard({ month, year }) {
           const rawDate = d.date;
 
           let dt = null;
-          if (rawDate?.seconds) dt = new Date(rawDate.seconds * 1000);else
-          if (typeof rawDate === "string") dt = new Date(rawDate);else
-          if (rawDate instanceof Date) dt = rawDate;
+          if (rawDate?.seconds) dt = new Date(rawDate.seconds * 1000);
+          else if (typeof rawDate === "string") dt = new Date(rawDate);
+          else if (rawDate instanceof Date) dt = rawDate;
 
           if (
-          dt &&
-          dt.getFullYear() === year &&
-          dt.getMonth() === month &&
-          typeof d.amount === "number")
-          {
+            dt &&
+            dt.getFullYear() === year &&
+            dt.getMonth() === month &&
+            typeof d.amount === "number"
+          ) {
             totalExpense += d.amount;
           }
         });
 
         const savings = totalIncome - totalExpense;
 
-        // 🔥 Gemini prompt
         const prompt = `
 You are a helpful AI financial assistant.
 
@@ -104,11 +96,10 @@ Total Expense: ₹${totalExpense.toFixed(2)}
 Savings: ₹${savings.toFixed(2)}
         `.trim();
 
-        // 🔗 API call (FIXED)
         const res = await fetch("/api/insight", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: prompt }) // ✅ FIXED HERE
+          body: JSON.stringify({ text: prompt })
         });
 
         if (!res.ok) {
@@ -118,7 +109,6 @@ Savings: ₹${savings.toFixed(2)}
         }
 
         const data = await res.json();
-
         const content = data?.content?.trim();
 
         if (!content) {
@@ -126,7 +116,6 @@ Savings: ₹${savings.toFixed(2)}
           return;
         }
 
-        // Parse markdown bullets or non-empty lines
         const bullets = content
           .split("\n")
           .map((line) => line.trim())
@@ -147,58 +136,65 @@ Savings: ₹${savings.toFixed(2)}
   }, [month, year, user, monthName]);
 
   const iconMap = [
-  <Lightbulb key="income" className="text-yellow-300 w-5 h-5 mt-1" />,
-  <BadgeCheck key="spending" className="text-teal-300 w-5 h-5 mt-1" />,
-  <TrendingUp key="tip" className="text-purple-300 w-5 h-5 mt-1" />];
-
+    <Lightbulb key="income" className="text-yellow-300 w-5 h-5 mt-1 shrink-0 animate-pulse" />,
+    <BadgeCheck key="spending" className="text-teal-300 w-5 h-5 mt-1 shrink-0" />,
+    <TrendingUp key="tip" className="text-purple-300 w-5 h-5 mt-1 shrink-0" />
+  ];
 
   return (
-    <Card className="bg-[#161b33] text-white h-full min-h-[250px]">
-      <CardContent className="p-5 flex flex-col gap-4">
-        <h2 className="text-xl font-bold">📘 AI Financial Insights</h2>
-        <p className="text-sm text-muted-foreground mb-1">
-          For{" "}
-          <span className="text-white font-medium">
+    <Card className="bg-gradient-to-br from-[#1f1938] via-[#161a36] to-[#0f1126] text-white h-full min-h-[250px] border border-purple-500/20 shadow-xl relative overflow-hidden">
+      <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+        <Sparkles className="w-24 h-24 text-purple-400" />
+      </div>
+
+      <CardContent className="p-5 flex flex-col gap-4 relative z-10">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-yellow-400" />
+            <span className="gradient-text-purple">AI Financial Insights</span>
+          </h2>
+          <span className="text-xs bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-full border border-purple-500/30">
             {monthName} {year}
           </span>
-        </p>
+        </div>
 
-        {loading &&
-        <p className="text-blue-200 text-center text-base py-6">
-            ⏳ Analyzing your financial data with Gemini...
-          </p>
-        }
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-8 gap-2 text-purple-300">
+            <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-xs font-medium animate-pulse">Analyzing financial data with Gemini AI...</p>
+          </div>
+        )}
 
-        {error &&
-        <p className="text-red-400 text-center text-base py-6">{error}</p>
-        }
+        {error && (
+          <p className="text-rose-400 text-center text-sm py-6 bg-rose-500/10 rounded-xl border border-rose-500/20 p-3">{error}</p>
+        )}
 
-        {!loading && !error && insightPoints.length > 0 &&
-        <div className="flex flex-col gap-4">
-            {insightPoints.map((point, idx) =>
-          <div key={idx} className="flex items-start gap-3 text-base">
+        {!loading && !error && insightPoints.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {insightPoints.map((point, idx) => (
+              <div key={idx} className="flex items-start gap-3 text-sm p-2.5 rounded-xl bg-white/5 border border-white/5 hover:border-purple-500/30 transition">
                 {iconMap[idx]}
-                <p className="text-blue-100">
+                <p className="text-gray-200 leading-relaxed">
                   <span className="font-semibold text-white">
-                    {idx === 0 ?
-                "Income Insight: " :
-                idx === 1 ?
-                "Spending Insight: " :
-                "Improvement Tip: "}
+                    {idx === 0
+                      ? "Income Insight: "
+                      : idx === 1
+                      ? "Spending Insight: "
+                      : "Improvement Tip: "}
                   </span>
                   {point}
                 </p>
               </div>
-          )}
+            ))}
           </div>
-        }
+        )}
 
-        {!loading && !error && insightPoints.length === 0 &&
-        <p className="text-gray-400 text-center py-6">
-            No insights available yet. Add some transactions to get started!
+        {!loading && !error && insightPoints.length === 0 && (
+          <p className="text-gray-400 text-center py-6 text-sm">
+            No insights available yet. Add transactions to generate AI advice!
           </p>
-        }
+        )}
       </CardContent>
-    </Card>);
-
+    </Card>
+  );
 }

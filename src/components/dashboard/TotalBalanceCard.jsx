@@ -14,7 +14,7 @@ import {
   YAxis,
   Tooltip
 } from "recharts";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, Wallet } from "lucide-react";
 
 export default function TotalBalanceCard({ month, year }) {
   const { user } = useAuth();
@@ -126,51 +126,60 @@ export default function TotalBalanceCard({ month, year }) {
   }, [user, month, year]);
 
   return (
-    <Card className="bg-[#161b33] text-white">
-      <CardContent className="p-4 space-y-4">
-        <h2 className="text-lg font-semibold">Total Balance</h2>
+    <Card className="bg-gradient-to-br from-[#1b1c3a] via-[#141630] to-[#0e0f22] text-white border border-purple-500/20 shadow-xl relative overflow-hidden h-full">
+      <CardContent className="p-5 space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-purple-400" />
+            Total Balance
+          </h2>
+          {change !== null && (
+            <span
+              className={`text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 border ${
+                change >= 0
+                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                  : "bg-rose-500/20 text-rose-300 border-rose-500/30"
+              }`}
+            >
+              {change >= 0 ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+              {Math.abs(change)}%
+            </span>
+          )}
+        </div>
 
-        <div className="text-4xl font-bold">
+        <div className="text-4xl font-black tracking-tight text-white">
           {formatAmount(currentBalance)}
         </div>
 
-        {change !== null && (
-          <p
-            className={`text-sm flex items-center gap-1 ${
-              change >= 0 ? "text-green-400" : "text-red-400"
-            }`}
-          >
-            {change >= 0 ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
-            {Math.abs(change)}% from last month
-          </p>
-        )}
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-[#0e2a22] to-[#0a1a15] border border-emerald-500/20">
+            <p className="text-[11px] text-emerald-300 font-medium">Monthly Income</p>
+            <p className="text-base font-bold text-emerald-400 mt-0.5">{formatAmount(currentIncome)}</p>
+          </div>
 
-        <div className="flex justify-between gap-4 text-sm mt-2">
-          <p className="text-green-400">
-            Income: <span className="font-semibold">{formatAmount(currentIncome)}</span>
-          </p>
-          <p className="text-red-400">
-            Expense: <span className="font-semibold">{formatAmount(currentExpense)}</span>
-          </p>
+          <div className="p-3 rounded-xl bg-gradient-to-br from-[#2a0e18] to-[#1a0a10] border border-rose-500/20">
+            <p className="text-[11px] text-rose-300 font-medium">Monthly Expense</p>
+            <p className="text-base font-bold text-rose-400 mt-0.5">{formatAmount(currentExpense)}</p>
+          </div>
         </div>
 
-        <div className="h-24">
+        <div className="h-20 pt-2">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
-              <XAxis dataKey="month" stroke="#8884d8" />
+              <XAxis dataKey="month" stroke="#8884d8" tick={{ fontSize: 11 }} />
               <YAxis hide />
               <Tooltip
-                contentStyle={{ backgroundColor: "#1e213a", border: "none" }}
+                contentStyle={{ backgroundColor: "#1e213a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px" }}
                 labelStyle={{ color: "#c3c3c3" }}
               />
               <Line
                 type="monotone"
                 dataKey="balance"
-                stroke="#ffb347"
-                strokeWidth={2}
+                stroke="#c084fc"
+                strokeWidth={3}
                 dot={{
                   r: 4,
-                  stroke: "#ffb347",
+                  stroke: "#a855f7",
                   strokeWidth: 2,
                   fill: "#161b33"
                 }}
