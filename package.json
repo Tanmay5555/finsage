@@ -26,6 +26,7 @@
     "dayjs": "^1.11.13",
     "firebase": "^12.11.0",
     "formidable": "^3.5.4",
+    "framer-motion": "^13.4.6",
     "lucide-react": "^0.525.0",
     "mime": "^4.0.7",
     "next": "^16.2.1",

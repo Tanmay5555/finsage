@@ -10,24 +10,39 @@ import LatestTransactionsTable from "@/components/dashboard/LatestTransactionsTa
 import SavingsTrendChart from "@/components/dashboard/SavingsTrendChart";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { motion } from "framer-motion";
+import { Sparkles, Calendar as CalendarIcon, Filter } from "lucide-react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue } from
-"@/components/ui/select";
+  SelectValue
+} from "@/components/ui/select";
 
-// ---------- Constants ----------
 const MONTHS = [
-"January", "February", "March", "April", "May", "June",
-"July", "August", "September", "October", "November", "December"];
-
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 const generateYears = (start, end) =>
-Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
-// ---------- Main Component ----------
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
 export default function DashboardPage() {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -48,70 +63,102 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-6 text-foreground">
-        {/* Header */}
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">
-          👋 Welcome back, {userName}!
-        </h1>
-        <p className="text-base md:text-lg text-muted-foreground">
-          Welcome to <span className="font-semibold text-purple-300">Finsage</span>, your personal finance assistant. Track your income, control your spending, and build your savings — all in one place.
-        </p>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex flex-col gap-6 text-white"
+      >
+        {/* Animated Welcome Banner */}
+        <motion.div variants={cardVariants} className="relative overflow-hidden rounded-2xl glass-card p-6 border border-white/10 glow-purple">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+            <Sparkles className="w-32 h-32 text-purple-400" />
+          </div>
 
-        {/* Filters */}
-        <div className="text-base md:text-lg mt-2 flex flex-wrap items-center gap-1">
-          <span>Showing insights and trends for Month</span>
+          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-xs font-semibold mb-2 border border-purple-500/30 shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-spin" style={{ animationDuration: '4s' }} />
+                AI-Powered Financial Insights
+              </div>
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+                👋 Welcome back, <span className="gradient-text-purple">{userName}</span>!
+              </h1>
+              <p className="text-sm md:text-base text-gray-300 mt-1 max-w-2xl">
+                Track your net income, control monthly spending, and build long-term savings with real-time AI assistance.
+              </p>
+            </div>
 
-          <Select
-            value={selectedMonth.toString()}
-            onValueChange={(val) => setSelectedMonth(Number(val))}>
-            
-            <SelectTrigger className="underline underline-offset-4 px-1 py-0 bg-transparent border-none text-purple-400 font-medium h-auto w-auto focus:ring-0 focus:outline-none hover:text-purple-800">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1f2547] text-white border border-white/10 shadow-lg">
-              {MONTHS.map((month, idx) =>
-              <SelectItem key={month} value={idx.toString()}>
-                  {month}
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+            {/* Filter Selector */}
+            <div className="flex items-center gap-2 bg-[#12152d] px-4 py-2 rounded-xl border border-white/10 shadow-inner">
+              <Filter className="w-4 h-4 text-purple-400" />
+              <div className="flex items-center gap-1 text-sm font-medium">
+                <Select
+                  value={selectedMonth.toString()}
+                  onValueChange={(val) => setSelectedMonth(Number(val))}
+                >
+                  <SelectTrigger className="px-2 py-1 bg-purple-600/20 border-purple-500/30 text-purple-300 font-semibold h-8 focus:ring-0 focus:outline-none rounded-lg hover:bg-purple-600/30">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#191d3d] text-white border border-white/10 shadow-xl">
+                    {MONTHS.map((month, idx) => (
+                      <SelectItem key={month} value={idx.toString()}>
+                        {month}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-          <span>, Year</span>
+                <Select
+                  value={selectedYear.toString()}
+                  onValueChange={(val) => setSelectedYear(Number(val))}
+                >
+                  <SelectTrigger className="px-2 py-1 bg-purple-600/20 border-purple-500/30 text-purple-300 font-semibold h-8 focus:ring-0 focus:outline-none rounded-lg hover:bg-purple-600/30">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#191d3d] text-white border border-white/10 shadow-xl">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={y.toString()}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
-          <Select
-            value={selectedYear.toString()}
-            onValueChange={(val) => setSelectedYear(Number(val))}>
-            
-            <SelectTrigger className="underline underline-offset-4 px-1 py-0 bg-transparent border-none text-purple-400 font-medium h-auto w-auto focus:ring-0 focus:outline-none hover:text-purple-800">
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#1f2547] text-white border border-white/10 shadow-lg">
-              {years.map((y) =>
-              <SelectItem key={y} value={y.toString()}>
-                  {y}
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Dashboard Top Row Metrics */}
+        <motion.div variants={cardVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="glass-card-hover rounded-2xl overflow-hidden">
+            <TotalBalanceCard month={selectedMonth} year={selectedYear} />
+          </motion.div>
+          <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="glass-card-hover rounded-2xl overflow-hidden">
+            <IncomeExpenseChart year={selectedYear} />
+          </motion.div>
+          <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="glass-card-hover rounded-2xl overflow-hidden">
+            <InsightSummaryCard month={selectedMonth} year={selectedYear} />
+          </motion.div>
+        </motion.div>
 
-        {/* Dashboard Charts */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <TotalBalanceCard month={selectedMonth} year={selectedYear} />
-          <IncomeExpenseChart year={selectedYear} />
-          <InsightSummaryCard month={selectedMonth} year={selectedYear} />
-        </div>
+        {/* Middle Row Charts */}
+        <motion.div variants={cardVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="glass-card-hover rounded-2xl overflow-hidden">
+            <SpendingCategoryChart month={selectedMonth} year={selectedYear} />
+          </motion.div>
+          <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="glass-card-hover rounded-2xl overflow-hidden">
+            <LatestTransactionsTable month={selectedMonth} year={selectedYear} />
+          </motion.div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <SpendingCategoryChart month={selectedMonth} year={selectedYear} />
-          <LatestTransactionsTable month={selectedMonth} year={selectedYear} />
-        </div>
-
-        <div className="grid grid-cols-1 gap-4">
-          <SavingsTrendChart year={selectedYear} />
-        </div>
-      </div>
-    </DashboardLayout>);
-
+        {/* Bottom Trend Chart */}
+        <motion.div variants={cardVariants} className="grid grid-cols-1 gap-6">
+          <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }} className="glass-card-hover rounded-2xl overflow-hidden">
+            <SavingsTrendChart year={selectedYear} />
+          </motion.div>
+        </motion.div>
+      </motion.div>
+    </DashboardLayout>
+  );
 }
