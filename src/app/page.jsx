@@ -40,10 +40,8 @@ export default function Home() {
 
       {/* Header Navigation */}
       <header className="px-6 py-5 max-w-7xl w-full mx-auto flex items-center justify-between relative z-10">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-gradient-to-tr from-purple-600 to-indigo-500 rounded-xl shadow-lg">
-            <Sparkles className="w-5 h-5 text-yellow-300 animate-pulse" />
-          </div>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="Finsage Logo" className="w-10 h-10 rounded-xl object-cover border border-purple-500/30 shadow-lg glow-purple" />
           <span className="text-2xl font-extrabold tracking-tight gradient-text-purple">Finsage</span>
         </div>
 

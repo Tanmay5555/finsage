@@ -61,11 +61,9 @@ export default function Sidebar() {
         <Link href="/">
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="mb-6 flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/40 transition cursor-pointer"
+            className="mb-6 flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/40 transition cursor-pointer"
           >
-            <div className="p-2 bg-gradient-to-tr from-purple-600 to-indigo-500 rounded-lg text-white shadow-md">
-              <Sparkles className="w-5 h-5 text-yellow-300 animate-pulse" />
-            </div>
+            <img src="/logo.png" alt="Finsage Logo" className="w-9 h-9 rounded-lg object-cover border border-purple-500/30 shadow-md" />
             <div>
               <h1 className="text-xl font-extrabold tracking-tight gradient-text-purple">Finsage AI</h1>
               <p className="text-[10px] text-purple-300 font-medium tracking-wide">Smart Financial Copilot</p>
