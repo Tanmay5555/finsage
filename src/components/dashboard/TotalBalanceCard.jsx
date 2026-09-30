@@ -5,28 +5,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import { useCurrency } from "@/context/CurrencyContext";
 import {
   ResponsiveContainer,
   LineChart,
   Line,
   XAxis,
   YAxis,
-  Tooltip } from
-"recharts";
+  Tooltip
+} from "recharts";
 import { ArrowDown, ArrowUp } from "lucide-react";
-
-
-
-
-
-
-
-
-
-
 
 export default function TotalBalanceCard({ month, year }) {
   const { user } = useAuth();
+  const { formatAmount } = useCurrency();
 
   const [data, setData] = useState([]);
   const [currentBalance, setCurrentBalance] = useState(0);
@@ -57,9 +49,9 @@ export default function TotalBalanceCard({ month, year }) {
         );
 
         const [incomeSnap, expenseSnap] = await Promise.all([
-        getDocs(incomeQuery),
-        getDocs(expenseQuery)]
-        );
+          getDocs(incomeQuery),
+          getDocs(expenseQuery)
+        ]);
 
         const balances = [];
 
@@ -78,11 +70,11 @@ export default function TotalBalanceCard({ month, year }) {
             const entry = doc.data();
             const dt = parseDate(entry.date);
             if (
-            dt &&
-            dt.getMonth() === targetMonth &&
-            dt.getFullYear() === targetYear &&
-            typeof entry.amount === "number")
-            {
+              dt &&
+              dt.getMonth() === targetMonth &&
+              dt.getFullYear() === targetYear &&
+              typeof entry.amount === "number"
+            ) {
               monthIncome += entry.amount;
             }
           });
@@ -91,11 +83,11 @@ export default function TotalBalanceCard({ month, year }) {
             const entry = doc.data();
             const dt = parseDate(entry.date);
             if (
-            dt &&
-            dt.getMonth() === targetMonth &&
-            dt.getFullYear() === targetYear &&
-            typeof entry.amount === "number")
-            {
+              dt &&
+              dt.getMonth() === targetMonth &&
+              dt.getFullYear() === targetYear &&
+              typeof entry.amount === "number"
+            ) {
               monthExpense += entry.amount;
             }
           });
@@ -120,7 +112,7 @@ export default function TotalBalanceCard({ month, year }) {
         setCurrentBalance(latestBalance);
 
         if (prevBalance !== 0) {
-          const percentChange = (latestBalance - prevBalance) / Math.abs(prevBalance) * 100;
+          const percentChange = ((latestBalance - prevBalance) / Math.abs(prevBalance)) * 100;
           setChange(parseFloat(percentChange.toFixed(1)));
         } else {
           setChange(latestBalance !== 0 ? 100 : 0);
@@ -139,26 +131,26 @@ export default function TotalBalanceCard({ month, year }) {
         <h2 className="text-lg font-semibold">Total Balance</h2>
 
         <div className="text-4xl font-bold">
-          ₹{currentBalance.toFixed(2)}
+          {formatAmount(currentBalance)}
         </div>
 
-        {change !== null &&
-        <p
-          className={`text-sm flex items-center gap-1 ${
-          change >= 0 ? "text-green-400" : "text-red-400"}`
-          }>
-          
+        {change !== null && (
+          <p
+            className={`text-sm flex items-center gap-1 ${
+              change >= 0 ? "text-green-400" : "text-red-400"
+            }`}
+          >
             {change >= 0 ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
             {Math.abs(change)}% from last month
           </p>
-        }
+        )}
 
         <div className="flex justify-between gap-4 text-sm mt-2">
           <p className="text-green-400">
-            Income: <span className="font-semibold">₹{currentIncome.toFixed(2)}</span>
+            Income: <span className="font-semibold">{formatAmount(currentIncome)}</span>
           </p>
           <p className="text-red-400">
-            Expense: <span className="font-semibold">₹{currentExpense.toFixed(2)}</span>
+            Expense: <span className="font-semibold">{formatAmount(currentExpense)}</span>
           </p>
         </div>
 
@@ -169,8 +161,8 @@ export default function TotalBalanceCard({ month, year }) {
               <YAxis hide />
               <Tooltip
                 contentStyle={{ backgroundColor: "#1e213a", border: "none" }}
-                labelStyle={{ color: "#c3c3c3" }} />
-              
+                labelStyle={{ color: "#c3c3c3" }}
+              />
               <Line
                 type="monotone"
                 dataKey="balance"
@@ -181,12 +173,12 @@ export default function TotalBalanceCard({ month, year }) {
                   stroke: "#ffb347",
                   strokeWidth: 2,
                   fill: "#161b33"
-                }} />
-              
+                }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
-    </Card>);
-
+    </Card>
+  );
 }
