@@ -13,12 +13,13 @@ import {
   X,
   FileUp,
   Target,
-  Sparkles
+  Network
 } from "lucide-react";
 import { useState } from "react";
 import clsx from "clsx";
 import { motion } from "framer-motion";
 import { CurrencySelector } from "@/components/ui/CurrencySelector";
+import { useTheme } from "@/context/ThemeContext";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, color: "text-blue-400", hoverBg: "hover:bg-blue-600/20" },
@@ -26,14 +27,20 @@ const navItems = [
   { href: "/expense", label: "Manage Expenses", icon: TrendingDown, color: "text-rose-400", hoverBg: "hover:bg-rose-600/20" },
   { href: "/goals", label: "Savings & AI Planner", icon: Target, color: "text-purple-400", hoverBg: "hover:bg-purple-600/20" },
   { href: "/upload-transactions", label: "Upload Bank Statement", icon: FileUp, color: "text-indigo-400", hoverBg: "hover:bg-indigo-600/20" },
-  { href: "/statistics", label: "Statistics", icon: BarChart2, color: "text-amber-400", hoverBg: "hover:bg-amber-600/20" }
+  { href: "/statistics", label: "Statistics", icon: BarChart2, color: "text-amber-400", hoverBg: "hover:bg-amber-600/20" },
+  { href: "/architecture", label: "Live Architecture", icon: Network, color: "text-cyan-400", hoverBg: "hover:bg-cyan-600/20" }
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { theme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
+
+  const sidebarBgStyle = {
+    background: `linear-gradient(185deg, ${theme.gradientFrom}dd 0%, ${theme.gradientVia}ee 50%, ${theme.gradientTo}ff 100%)`
+  };
 
   return (
     <>
@@ -41,7 +48,7 @@ export default function Sidebar() {
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
           onClick={toggleSidebar}
-          className="p-2.5 rounded-xl bg-[#161b33] text-white border border-purple-500/30 shadow-lg backdrop-blur-md"
+          className="p-2.5 rounded-xl bg-black/40 text-white border border-white/20 shadow-lg backdrop-blur-md"
         >
           {isOpen ? <X className="w-6 h-6 text-purple-400" /> : <Menu className="w-6 h-6 text-purple-400" />}
         </button>
@@ -49,8 +56,9 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <aside
+        style={sidebarBgStyle}
         className={clsx(
-          "fixed z-40 lg:static top-0 left-0 h-full w-64 bg-gradient-to-b from-[#0c0d1d] via-[#12152d] to-[#191d3d] text-white flex flex-col p-5 shadow-2xl border-r border-white/10 transition-transform duration-300 ease-in-out backdrop-blur-xl",
+          "fixed z-40 lg:static top-0 left-0 h-full w-64 text-white flex flex-col p-5 shadow-2xl border-r border-white/10 transition-all duration-500 ease-in-out backdrop-blur-2xl",
           {
             "-translate-x-full": !isOpen,
             "translate-x-0": isOpen,
@@ -61,12 +69,16 @@ export default function Sidebar() {
         <Link href="/">
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="mb-6 flex items-center gap-2.5 p-2 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/40 transition cursor-pointer"
+            className="mb-5 flex items-center gap-2.5 p-2.5 rounded-2xl bg-white/5 border border-white/10 hover:border-white/25 transition cursor-pointer"
           >
-            <img src="/logo.png" alt="Finsage Logo" className="w-9 h-9 rounded-lg object-cover border border-purple-500/30 shadow-md" />
+            <img src="/logo.png" alt="Finsage Logo" className="w-9 h-9 rounded-xl object-cover border border-white/20 shadow-md" />
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight gradient-text-purple">Finsage AI</h1>
-              <p className="text-[10px] text-purple-300 font-medium tracking-wide">Smart Financial Copilot</p>
+              <h1 className={clsx("text-xl font-extrabold tracking-tight bg-gradient-to-r bg-clip-text text-transparent", theme.headerGradient)}>
+                Finsage AI
+              </h1>
+              <p className="text-[10px] text-gray-300 font-medium tracking-wide flex items-center gap-1">
+                <span>{theme.icon}</span> <span>{theme.name}</span>
+              </p>
             </div>
           </motion.div>
         </Link>
@@ -90,7 +102,7 @@ export default function Sidebar() {
                     "flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition duration-200 font-medium relative group",
                     item.hoverBg,
                     isActive
-                      ? "bg-purple-600/30 text-white font-semibold border border-purple-500/40 shadow-lg glow-purple"
+                      ? "bg-white/15 text-white font-semibold border border-white/30 shadow-lg backdrop-blur-md"
                       : "text-gray-300 hover:text-white"
                   )}
                 >
@@ -99,7 +111,8 @@ export default function Sidebar() {
                   {isActive && (
                     <motion.div
                       layoutId="activeIndicator"
-                      className="absolute right-2 w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_#c084fc]"
+                      className="absolute right-2 w-2 h-2 rounded-full shadow-lg"
+                      style={{ backgroundColor: theme.accentColor || "#c084fc", boxShadow: `0 0 10px ${theme.accentColor}` }}
                     />
                   )}
                 </motion.div>
@@ -114,7 +127,7 @@ export default function Sidebar() {
               whileHover={{ x: 4 }}
               className={clsx(
                 "flex items-center gap-3 px-3.5 py-2 rounded-xl transition hover:bg-white/10",
-                pathname === "/account" ? "bg-white/10 text-white font-semibold" : "text-gray-400"
+                pathname === "/account" ? "bg-white/15 text-white font-semibold" : "text-gray-400"
               )}
             >
               <User className="w-4 h-4 text-purple-300" />
@@ -127,11 +140,11 @@ export default function Sidebar() {
               whileHover={{ x: 4 }}
               className={clsx(
                 "flex items-center gap-3 px-3.5 py-2 rounded-xl transition hover:bg-white/10",
-                pathname === "/settings" ? "bg-white/10 text-white font-semibold" : "text-gray-400"
+                pathname === "/settings" ? "bg-white/15 text-white font-semibold" : "text-gray-400"
               )}
             >
               <Settings className="w-4 h-4 text-purple-300" />
-              <span>Settings</span>
+              <span>Settings & Themes</span>
             </motion.div>
           </Link>
         </div>

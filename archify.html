@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finsage AI — Interactive System Architecture Map (Archify)</title>
+  <style>
+    :root {
+      --bg: #090a16;
+      --card-bg: rgba(18, 22, 43, 0.85);
+      --border: rgba(255, 255, 255, 0.12);
+      --accent-purple: #a855f7;
+      --accent-blue: #38bdf8;
+      --accent-emerald: #34d399;
+      --accent-pink: #f472b6;
+      --accent-amber: #fbbf24;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+      background-image: radial-gradient(circle at 15% 15%, rgba(168, 85, 247, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.15) 0%, transparent 40%);
+    }
+
+    header {
+      max-width: 1200px;
+      margin: 0 auto 2rem auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .brand-icon {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, #a855f7, #ec4899);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.2rem; box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+    }
+    h1 { font-size: 1.75rem; font-weight: 800; background: linear-gradient(135deg, #c084fc, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    p.subtitle { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.35rem;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active, .tab-btn:hover {
+      background: rgba(168, 85, 247, 0.25);
+      color: #fff;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
+    main { max-width: 1200px; margin: 0 auto; }
+
+    .search-bar {
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 0.75rem 1.25rem;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--accent-purple); box-shadow: 0 0 15px rgba(168, 85, 247, 0.2); }
+
+    .architecture-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .layer-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .layer-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 15px 35px -10px rgba(168, 85, 247, 0.25);
+      border-color: rgba(168, 85, 247, 0.4);
+    }
+
+    .layer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .layer-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .badge-purple { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-blue { background: rgba(56, 189, 248, 0.2); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-emerald { background: rgba(52, 211, 153, 0.2); color: #6ee7b7; border: 1px solid rgba(52, 211, 153, 0.3); }
+    .badge-pink { background: rgba(244, 114, 182, 0.2); color: #fbcfe8; border: 1px solid rgba(244, 114, 182, 0.3); }
+    .badge-amber { background: rgba(251, 191, 36, 0.2); color: #fde68a; border: 1px solid rgba(251, 191, 36, 0.3); }
+
+    .node-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .node-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 0.75rem;
+      border-radius: 12px;
+      transition: all 0.2s;
+    }
+    .node-item:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.15); }
+    .node-name { font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 0.2rem; }
+    .node-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.4; }
+    .node-path { font-family: monospace; font-size: 0.7rem; color: var(--accent-purple); margin-top: 0.4rem; display: block; }
+
+    .flow-connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 1rem 0;
+      color: var(--accent-purple);
+      font-weight: bold;
+    }
+
+    footer {
+      max-width: 1200px;
+      margin: 3rem auto 0 auto;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <h1>Finsage AI Architecture Map</h1>
+        <p class="subtitle">Interactive System Visualizer generated by Archify Skill</p>
+      </div>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="filterTab('all')">Full System</button>
+      <button class="tab-btn" onclick="filterTab('frontend')">Frontend & UI</button>
+      <button class="tab-btn" onclick="filterTab('theme')">Theme Engine</button>
+      <button class="tab-btn" onclick="filterTab('api')">Next.js APIs</button>
+      <button class="tab-btn" onclick="filterTab('cloud')">Firebase & Gemini</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="search-bar">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search components, API routes, context providers, or database schemas..." onkeyup="searchNodes()">
+    </div>
+
+    <div class="architecture-grid" id="grid">
+
+      <!-- LAYER 1: FRONTEND ROUTING & LAYOUT -->
+      <div class="layer-card" data-category="frontend">
+        <div class="layer-header">
+          <div class="layer-title">🖥️ Next.js App Router</div>
+          <span class="badge badge-purple">Frontend</span>
+        </div>
+        <div class="node-list">
+          <div class="node-item">
+            <div class="node-name">Root Layout & Providers</div>
+            <div class="node-desc">Root HTML structure wrapping AuthProvider, CurrencyProvider, ThemeProvider, and Sonner Toaster.</div>
+            <span class="node-path">src/app/layout.jsx</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Dashboard Layout & Ambient Glow</div>
+            <div class="node-desc">Protected shell with auth verification, ambient glowing background orbs, ThemeParticles, ThemeSelectorWidget, and responsive Sidebar.</div>
+            <span class="node-path">src/components/layouts/DashboardLayout.jsx</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Main Dashboard Page</div>
+            <div class="node-desc">Real-time metrics overview, Income/Expense charts, AI advice card, and recent transactions table.</div>
+            <span class="node-path">src/app/dashboard/page.jsx</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Smart Savings & AI Planner</div>
+            <div class="node-desc">Savings target creation, milestone deposit tracker, and Gemini AI milestone advice generator.</div>
+            <span class="node-path">src/app/goals/page.jsx</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAYER 2: THEME & AESTHETICS ENGINE -->
+      <div class="layer-card" data-category="theme">
+        <div class="layer-header">
+          <div class="layer-title">🎨 Dynamic Theme Engine</div>
+          <span class="badge badge-pink">Visuals</span>
+        </div>
+        <div class="node-list">
+          <div class="node-item">
+            <div class="node-name">Theme Registry & Auto Detectors</div>
+            <div class="node-desc">Preset configurations for 4 Time Themes (Morning, Day, Sunset, Midnight) & 7 Festival Themes (Diwali, Holi, Navratri, Christmas, Eid, Tricolor, Halloween).</div>
+            <span class="node-path">src/lib/themes.js</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Theme Context & Admin Guard</div>
+            <div class="node-desc">Manages active theme state. Restricts Festival Themes & Auto-Festival mode strictly to Admin accounts.</div>
+            <span class="node-path">src/context/ThemeContext.jsx</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Floating Theme Particles</div>
+            <div class="node-desc">Framer Motion ambient floating particles (Diyas for Diwali, Gulal for Holi, Sunbeams for Morning, Snowflakes for Christmas).</div>
+            <span class="node-path">src/components/ui/ThemeParticles.jsx</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Theme Selector Popover</div>
+            <div class="node-desc">Top header popover widget for 1-click theme switching with Admin lock badges.</div>
+            <span class="node-path">src/components/ui/ThemeSelectorWidget.jsx</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAYER 3: API & SERVERLESS ROUTES -->
+      <div class="layer-card" data-category="api">
+        <div class="layer-header">
+          <div class="layer-title">⚙️ Next.js Server API Routes</div>
+          <span class="badge badge-blue">Backend API</span>
+        </div>
+        <div class="node-list">
+          <div class="node-item">
+            <div class="node-name">Gemini AI Financial Insights</div>
+            <div class="node-desc">Processes user budget summaries and streams personalized AI advice via Google Gemini 2.5 API.</div>
+            <span class="node-path">src/app/api/insight/route.js</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Receipt OCR Amount Extractor</div>
+            <div class="node-desc">Extracts bill amounts, merchant titles, and transaction dates from uploaded images/PDFs using Google Cloud Vision.</div>
+            <span class="node-path">src/app/api/amount-extract/route.js</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Bank Statement PDF Parser</div>
+            <div class="node-desc">Parses multi-page PDF bank statements and structures bulk transactions into Firestore.</div>
+            <span class="node-path">src/app/api/file-transaction/route.js</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Financial Stats Aggregator</div>
+            <div class="node-desc">Aggregates monthly income vs expense metrics and category breakdowns for statistics charts.</div>
+            <span class="node-path">src/app/api/stats/summary/route.js</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAYER 4: CLOUD INTEGRATIONS & DATABASE -->
+      <div class="layer-card" data-category="cloud">
+        <div class="layer-header">
+          <div class="layer-title">☁️ Firebase & Cloud Services</div>
+          <span class="badge badge-emerald">Cloud & DB</span>
+        </div>
+        <div class="node-list">
+          <div class="node-item">
+            <div class="node-name">Firebase App & Client Config</div>
+            <div class="node-desc">Sanitized Firebase initialization exporting auth, db (Firestore), and storage handles.</div>
+            <span class="node-path">src/lib/firebase.js</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Firebase Auth & Role Context</div>
+            <div class="node-desc">Manages user login, registration, onAuthStateChanged subscriber, and admin authorization verification.</div>
+            <span class="node-path">src/context/AuthContext.jsx</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Firestore Collections</div>
+            <div class="node-desc">NoSQL database collections: `incomes`, `expenses`, `goals`, `users` indexed by userId.</div>
+            <span class="node-path">Cloud Firestore</span>
+          </div>
+          <div class="node-item">
+            <div class="node-name">Google Gemini 2.5 Flash API</div>
+            <div class="node-desc">High-speed generative AI model powering financial advice, tips, and natural language categorization.</div>
+            <span class="node-path">@google/genai</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <p>Finsage AI System Architecture & Data-Flow Visualizer &bull; Created with Archify</p>
+  </footer>
+
+  <script>
+    function filterTab(category) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const cards = document.querySelectorAll('.layer-card');
+      cards.forEach(card => {
+        if (category === 'all' || card.getAttribute('data-category') === category) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function searchNodes() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const items = document.querySelectorAll('.node-item');
+
+      items.forEach(item => {
+        const text = item.innerText.toLowerCase();
+        if (text.includes(query)) {
+          item.style.display = 'block';
+          item.style.borderColor = 'rgba(168, 85, 247, 0.6)';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
